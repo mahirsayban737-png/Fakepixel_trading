@@ -2,830 +2,640 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1">
   <meta name="theme-color" content="#020617">
-  <title>Fakepixel Trading Hub</title>
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>FakePixel Trading Hub</title>
+
+  <!-- Tailwind v4 Browser Build -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Vue 3 (production) -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  
-  <link rel="stylesheet" href="style.css">
-  
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            dark: { 900: '#020617', 800: '#0f172a', 700: '#1e293b', 600: '#334155' }
-          }
-        }
-      }
-    }
-  </script>
+
+  <!-- Firebase Compat v9 -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <style>
+    /* ── 120 Hz / S24 FE optimisations ── */
+    *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{touch-action:manipulation;overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+    .scroll-gpu{will-change:transform;-webkit-overflow-scrolling:touch;transform:translateZ(0)}
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:5px;height:5px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:#4c1d95;border-radius:4px}
+
+    /* Animations */
+    .modal-pop{animation:popIn .22s cubic-bezier(.21,1.02,.73,1)}
+    @keyframes popIn{from{opacity:0;transform:scale(.92) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+    .fade-in{animation:fadeIn .25s ease}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+    /* Loader */
+    .dot{animation:dotPulse 1.4s infinite both}
+    .dot:nth-child(2){animation-delay:.16s}
+    .dot:nth-child(3){animation-delay:.32s}
+    @keyframes dotPulse{0%,80%,100%{opacity:.25;transform:scale(.85)}40%{opacity:1;transform:scale(1.1)}}
+
+    /* Prevent zoom on input focus (iOS / Samsung) */
+    input,textarea,select{font-size:16px!important}
+    @media(min-width:640px){input,textarea,select{font-size:14px!important}}
+  </style>
 </head>
-<body class="bg-dark-900 min-h-screen">
-  <div id="app">
-    <!-- Auth Loading Overlay -->
-    <div v-if="authLoading" class="fixed inset-0 bg-dark-900 z-50 flex items-center justify-center">
-      <div class="text-center">
-        <div class="spinner mx-auto mb-4"></div>
-        <p class="text-slate-400">{{ authMessage }}</p>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+<!-- ═══════════════ VUE APP ROOT ═══════════════ -->
+<div id="app">
+
+  <!-- ── FULL-SCREEN LOADER (shown until auth resolves) ── -->
+  <div v-if="authLoading" class="fixed inset-0 bg-slate-950 z-[9999] flex items-center justify-center">
+    <div class="text-center">
+      <div class="flex gap-2 justify-center mb-5">
+        <span class="dot w-3 h-3 bg-violet-500 rounded-full inline-block"></span>
+        <span class="dot w-3 h-3 bg-fuchsia-500 rounded-full inline-block"></span>
+        <span class="dot w-3 h-3 bg-violet-500 rounded-full inline-block"></span>
       </div>
+      <p class="text-slate-500 text-sm tracking-wide">Initialising Trading Hub…</p>
     </div>
-    
-    <!-- Mandatory Profile Setup Modal -->
-    <div v-if="showMandatoryProfile && user && !authLoading" class="modal-overlay" style="z-index: 9999;">
-      <div class="modal-content glass-modal max-w-md">
-        <div class="text-center mb-6">
-          <div class="w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center mx-auto mb-4">
-            <i data-lucide="user-check" class="w-10 h-10 text-white"></i>
-          </div>
-          <h3 class="text-2xl font-bold mb-2">Welcome to Fakepixel Hub!</h3>
-          <p class="text-slate-400">Set your Fakepixel username to start trading</p>
+  </div>
+
+  <!-- ═══════════════ NAVBAR ═══════════════ -->
+  <nav v-show="!authLoading" class="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/50">
+    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+
+      <!-- Brand -->
+      <div class="flex items-center gap-2.5 select-none">
+        <div class="w-8 h-8 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-lg flex items-center justify-center shadow-lg shadow-violet-500/20">
+          <i data-lucide="repeat" class="w-4 h-4 text-white"></i>
         </div>
-        
-        <div class="mb-4">
-          <label class="block text-sm text-slate-400 mb-2">Your In-Game Username</label>
-          <input v-model="mandatoryUsername" type="text" class="input-field text-lg" placeholder="Enter your Minecraft username" maxlength="16">
-          <p class="text-xs text-slate-500 mt-2">3-16 characters. Letters, numbers, and underscores only.</p>
-        </div>
-        
-        <div v-if="mandatoryError" class="text-red-400 text-sm mb-4 flex items-center gap-2">
-          <i data-lucide="alert-circle" class="w-4 h-4"></i>
-          {{ mandatoryError }}
-        </div>
-        
-        <button @click="saveMandatoryProfile" class="btn-primary w-full text-lg py-3" :disabled="savingMandatory">
-          <span v-if="savingMandatory" class="flex items-center justify-center gap-2">
-            <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            Setting up...
-          </span>
-          <span v-else class="flex items-center justify-center gap-2">
-            <i data-lucide="check" class="w-5 h-5"></i>
-            Start Trading
-          </span>
+        <span class="text-base font-extrabold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">FakePixel</span>
+      </div>
+
+      <!-- Right side -->
+      <div class="flex items-center gap-2.5">
+        <!-- Admin link (visible only to admins) -->
+        <a v-if="isUserAdmin" href="admin.html"
+           class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 px-3 py-1.5 rounded-lg hover:bg-amber-500/20 active:scale-95 transition-all">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Admin</span>
+        </a>
+
+        <template v-if="user">
+          <img :src="user.photoURL || ''" :alt="displayName"
+               class="w-8 h-8 rounded-full ring-2 ring-violet-500/40 object-cover">
+          <span class="text-sm font-semibold hidden sm:inline max-w-[120px] truncate">{{ displayName }}</span>
+          <button @click="handleSignOut" title="Sign out"
+                  class="p-2 text-slate-400 hover:text-white transition-colors active:scale-90">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </template>
+
+        <button v-else @click="handleSignIn"
+                class="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all active:scale-95">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          Sign In
         </button>
       </div>
     </div>
-    
-    <!-- Navbar -->
-    <nav class="navbar px-4 py-3">
-      <div class="max-w-7xl mx-auto flex items-center justify-between">
-        <a href="index.html" class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-            <i data-lucide="gem" class="w-6 h-6 text-white"></i>
-          </div>
-          <span class="text-xl font-bold gradient-text hidden sm:block">Fakepixel Hub</span>
-        </a>
-        
-        <div class="flex items-center gap-2 sm:gap-4">
-          <a href="index.html" class="nav-link active flex items-center gap-2">
-            <i data-lucide="activity" class="w-4 h-4"></i>
-            <span class="hidden sm:inline">Live Trades</span>
-          </a>
-          <a href="calculator.html" class="nav-link flex items-center gap-2">
-            <i data-lucide="calculator" class="w-4 h-4"></i>
-            <span class="hidden sm:inline">Calculator</span>
-          </a>
-          <!-- Admin Link - Only visible for admins -->
-          <a v-if="isUserAdmin" href="admin.html" class="nav-link flex items-center gap-2">
-            <i data-lucide="shield" class="w-4 h-4"></i>
-            <span class="hidden sm:inline">Admin</span>
-          </a>
-        </div>
-        
-        <div class="flex items-center gap-3">
-          <div class="live-indicator mr-2">
-            <span class="live-dot"></span>
-            <span class="text-sm text-emerald-400 font-medium hidden sm:block">Live</span>
-          </div>
-          
-          <div v-if="user" class="flex items-center gap-2">
-            <button @click="showProfileModal = true" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <img :src="user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(userDisplayName)" 
-                   :alt="userDisplayName" class="user-avatar" @error="handleAvatarError">
-              <div class="hidden sm:block text-left">
-                <div class="text-sm font-medium truncate max-w-[120px]">{{ userDisplayName }}</div>
-                <div class="text-xs text-slate-500">{{ userTradeCount }}/5 trades</div>
-              </div>
-            </button>
-            <button @click="handleSignOut" class="text-slate-400 hover:text-white p-2 ml-1" title="Sign Out">
-              <i data-lucide="log-out" class="w-4 h-4"></i>
-            </button>
-          </div>
-          <button v-else @click="handleGoogleSignIn" class="btn-google text-sm py-2 px-3">
-            <svg class="w-4 h-4" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-            <span class="hidden sm:inline">Sign In</span>
-          </button>
+  </nav>
+
+  <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+  <main v-show="!authLoading" class="max-w-6xl mx-auto px-4 py-5 fade-in">
+
+    <!-- ── Controls bar ── -->
+    <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between mb-5">
+      <div>
+        <h2 class="text-xl sm:text-2xl font-bold">Trade Marketplace</h2>
+        <p class="text-slate-500 text-xs mt-0.5">{{ trades.length }} active trade{{ trades.length !== 1 ? 's' : '' }}</p>
+      </div>
+      <div class="flex gap-2.5 w-full sm:w-auto">
+        <button v-if="user && userProfile && userProfile.fakepixelName" @click="openCreateModal"
+                class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95 shadow-lg shadow-violet-600/20">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          Create Trade
+        </button>
+        <div class="relative flex-1 sm:flex-none">
+          <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <input v-model="tradeSearch" type="text" placeholder="Search trades…"
+                 class="w-full sm:w-52 bg-slate-800/60 border border-slate-700/40 rounded-xl pl-9 pr-3 py-2.5 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-all">
         </div>
       </div>
-    </nav>
-    
-    <!-- Hero Section -->
-    <section class="py-12 sm:py-20 px-4">
-      <div class="max-w-7xl mx-auto text-center">
-        <h1 class="text-4xl sm:text-6xl font-extrabold mb-4">
-          <span class="gradient-text">Fakepixel</span> Trading Hub
-        </h1>
-        <p class="text-slate-400 text-lg sm:text-xl max-w-2xl mx-auto mb-8">
-          Real-time marketplace for Minecraft trades. Track prices, calculate fairness, and find the best deals.
-        </p>
-        
-        <div class="flex flex-wrap justify-center gap-4 sm:gap-8">
-          <div class="glass-card px-6 py-4">
-            <div class="text-2xl font-bold text-violet-400">{{ items.length }}</div>
-            <div class="text-sm text-slate-400">Items Listed</div>
-          </div>
-          <div class="glass-card px-6 py-4">
-            <div class="text-2xl font-bold text-cyan-400">{{ trades.length }}</div>
-            <div class="text-sm text-slate-400">Active Trades</div>
-          </div>
-          <div class="glass-card px-6 py-4">
-            <div class="text-2xl font-bold text-emerald-400">{{ onlineCount }}</div>
-            <div class="text-sm text-slate-400">Online Now</div>
-          </div>
-        </div>
+    </div>
+
+    <!-- ── Not signed-in hero ── -->
+    <div v-if="!user" class="bg-slate-900/60 border border-slate-800/40 rounded-2xl p-10 text-center max-w-lg mx-auto">
+      <div class="w-16 h-16 bg-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
+        <i data-lucide="lock-keyhole" class="w-8 h-8 text-violet-400"></i>
       </div>
-    </section>
-    
-    <!-- Create Trade Section -->
-    <section class="py-8 px-4" v-if="user && userProfile?.fakepixelName">
-      <div class="max-w-4xl mx-auto">
-        <div class="glass-card p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold flex items-center gap-2">
-              <i data-lucide="plus-circle" class="w-5 h-5 text-violet-400"></i>
-              Post a Trade
-            </h2>
-            <div class="text-sm" :class="userTradeCount >= 5 ? 'text-red-400' : 'text-slate-400'">
-              {{ userTradeCount }}/5 trades
-            </div>
-          </div>
-          
-          <div v-if="userTradeCount >= 5" class="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
-            <div class="flex items-center gap-2 text-red-400">
-              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-              <span class="font-medium">Trade limit reached!</span>
-            </div>
-            <p class="text-sm text-red-400/80 mt-1">Delete an existing trade before posting a new one.</p>
-          </div>
-          
-          <div class="mb-4">
-            <label class="block text-sm text-slate-400 mb-2">Trade Description (Optional)</label>
-            <textarea v-model="newTrade.description" class="input-field" rows="2" placeholder="Describe your trade..." :disabled="userTradeCount >= 5"></textarea>
-          </div>
-          
-          <div class="grid lg:grid-cols-2 gap-6 mb-4">
-            <!-- Giving Side -->
-            <div class="glass-inner rounded-xl p-4">
-              <h3 class="text-sm font-semibold text-emerald-400 mb-3 flex items-center gap-2">
-                <i data-lucide="arrow-up-circle" class="w-4 h-4"></i>
-                You're Giving (HAVE)
-              </h3>
-              
-              <div class="mb-3">
-                <input v-model="offeringSearch" type="text" class="input-field text-sm py-2 mb-2" placeholder="Search items..." :disabled="userTradeCount >= 5">
-                <div class="flex gap-2">
-                  <select v-model="selectedOfferingItem" class="input-field flex-1 text-sm py-2" :disabled="userTradeCount >= 5">
-                    <option value="">Select item...</option>
-                    <option v-for="item in filteredOfferingItems" :key="item.id" :value="item.id">
-                      {{ item.name }} ({{ formatNumber(item.value) }})
-                    </option>
-                  </select>
-                  <input v-model.number="offeringQty" type="number" min="1" class="input-field w-16 text-sm py-2" placeholder="Qty" :disabled="userTradeCount >= 5">
-                  <button @click="addOfferingItem" class="btn-primary px-3 py-2" :disabled="!selectedOfferingItem || userTradeCount >= 5">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                  </button>
-                </div>
-              </div>
-              
-              <div class="multi-item-container" v-if="newTrade.offering.length">
-                <div v-for="(item, idx) in newTrade.offering" :key="idx" class="multi-item-card">
-                  <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
-                  <div class="item-name">{{ getItemName(item.id) }}</div>
-                  <div class="item-qty">x{{ item.quantity }}</div>
-                  <button @click="removeOfferingItem(idx)" class="text-red-400 text-xs mt-1 hover:text-red-300">
-                    <i data-lucide="x" class="w-3 h-3"></i>
-                  </button>
-                </div>
-              </div>
-              <div v-else class="text-center py-4 text-slate-500 text-sm">No items added</div>
-              
-              <div class="mt-3 flex items-center gap-2">
-                <i data-lucide="wallet" class="w-4 h-4 text-amber-400"></i>
-                <span class="text-sm text-slate-400">Purse:</span>
-                <input v-model.number="newTrade.purseOffering" type="number" min="0" class="input-field flex-1 text-sm py-2" placeholder="0" :disabled="userTradeCount >= 5">
-              </div>
-            </div>
-            
-            <!-- Wanting Side -->
-            <div class="glass-inner rounded-xl p-4">
-              <h3 class="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-2">
-                <i data-lucide="arrow-down-circle" class="w-4 h-4"></i>
-                You're Wanting (WANT)
-              </h3>
-              
-              <div class="mb-3">
-                <input v-model="seekingSearch" type="text" class="input-field text-sm py-2 mb-2" placeholder="Search items..." :disabled="userTradeCount >= 5">
-                <div class="flex gap-2">
-                  <select v-model="selectedSeekingItem" class="input-field flex-1 text-sm py-2" :disabled="userTradeCount >= 5">
-                    <option value="">Select item...</option>
-                    <option v-for="item in filteredSeekingItems" :key="item.id" :value="item.id">
-                      {{ item.name }} ({{ formatNumber(item.value) }})
-                    </option>
-                  </select>
-                  <input v-model.number="seekingQty" type="number" min="1" class="input-field w-16 text-sm py-2" placeholder="Qty" :disabled="userTradeCount >= 5">
-                  <button @click="addSeekingItem" class="btn-primary px-3 py-2" :disabled="!selectedSeekingItem || userTradeCount >= 5">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                  </button>
-                </div>
-              </div>
-              
-              <div class="multi-item-container" v-if="newTrade.seeking.length">
-                <div v-for="(item, idx) in newTrade.seeking" :key="idx" class="multi-item-card">
-                  <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
-                  <div class="item-name">{{ getItemName(item.id) }}</div>
-                  <div class="item-qty">x{{ item.quantity }}</div>
-                  <button @click="removeSeekingItem(idx)" class="text-red-400 text-xs mt-1 hover:text-red-300">
-                    <i data-lucide="x" class="w-3 h-3"></i>
-                  </button>
-                </div>
-              </div>
-              <div v-else class="text-center py-4 text-slate-500 text-sm">No items added</div>
-              
-              <div class="mt-3 flex items-center gap-2">
-                <i data-lucide="wallet" class="w-4 h-4 text-amber-400"></i>
-                <span class="text-sm text-slate-400">Purse:</span>
-                <input v-model.number="newTrade.purseSeeking" type="number" min="0" class="input-field flex-1 text-sm py-2" placeholder="0" :disabled="userTradeCount >= 5">
-              </div>
-            </div>
-          </div>
-          
-          <div v-if="tradeError" class="text-red-400 text-sm mb-4 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-4 h-4"></i>
-            {{ tradeError }}
-          </div>
-          
-          <button @click="postTrade" class="btn-primary w-full sm:w-auto" :disabled="!canPostTrade || posting || userTradeCount >= 5">
-            <span v-if="posting" class="flex items-center justify-center gap-2">
-              <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              Posting...
-            </span>
-            <span v-else class="flex items-center justify-center gap-2">
-              <i data-lucide="send" class="w-4 h-4"></i>
-              Post Trade
-            </span>
-          </button>
-        </div>
+      <h3 class="text-xl font-bold mb-2">Welcome to the Trading Hub</h3>
+      <p class="text-slate-400 text-sm mb-6 leading-relaxed">Sign in with your Google account to browse, create, and manage trades.</p>
+      <button @click="handleSignIn"
+              class="bg-violet-600 hover:bg-violet-500 text-white px-8 py-3 rounded-xl font-semibold transition-all active:scale-95 shadow-lg shadow-violet-600/20">
+        Sign In with Google
+      </button>
+    </div>
+
+    <!-- ── Trades list ── -->
+    <div v-else class="space-y-4 scroll-gpu pb-8">
+
+      <div v-if="filteredTrades.length === 0" class="bg-slate-900/60 border border-slate-800/40 rounded-2xl p-10 text-center">
+        <i data-lucide="inbox" class="w-12 h-12 text-slate-700 mx-auto mb-3"></i>
+        <p class="text-slate-500 text-sm">No trades found. Be the first to post one!</p>
       </div>
-    </section>
-    
-    <!-- Sign In Prompt -->
-    <section class="py-8 px-4" v-else-if="!authLoading && !user">
-      <div class="max-w-md mx-auto">
-        <div class="glass-card p-8 text-center">
-          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center mx-auto mb-4">
-            <i data-lucide="user-plus" class="w-8 h-8 text-white"></i>
+
+      <!-- Trade card -->
+      <div v-for="trade in filteredTrades" :key="trade.id"
+           class="bg-slate-900/70 border border-slate-800/40 rounded-2xl p-4 sm:p-5 hover:border-violet-500/30 transition-all">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+              {{ avatarLetter(trade.fakepixelName) }}
+            </div>
+            <div class="min-w-0">
+              <p class="font-semibold text-sm truncate">{{ trade.fakepixelName || 'Unknown' }}</p>
+              <p class="text-[11px] text-slate-500">{{ fmtTime(trade.createdAt) }}</p>
+            </div>
           </div>
-          <h2 class="text-xl font-bold mb-2">Join the Trading Community</h2>
-          <p class="text-slate-400 mb-6">Sign in with Google to post trades and connect with other players.</p>
-          <button @click="handleGoogleSignIn" class="btn-google w-full justify-center">
-            <svg class="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-            Sign in with Google
-          </button>
-        </div>
-      </div>
-    </section>
-    
-    <!-- Live Trades Section -->
-    <section class="py-8 px-4 pb-20">
-      <div class="max-w-7xl mx-auto">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h2 class="text-2xl font-bold flex items-center gap-2">
-            <i data-lucide="radio" class="w-6 h-6 text-violet-400"></i>
-            Live Trades
-          </h2>
-          
-          <div class="filter-tabs">
-            <button @click="tradeFilter = 'all'" :class="{ active: tradeFilter === 'all' }" class="filter-tab">
-              All Trades
-            </button>
-            <button @click="tradeFilter = 'mine'" :class="{ active: tradeFilter === 'mine' }" class="filter-tab" :disabled="!user">
-              My Trades
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">Open</span>
+            <button v-if="canDeleteTrade(trade)" @click="handleDeleteTrade(trade.id)"
+                    class="p-1.5 text-slate-600 hover:text-red-400 transition-colors active:scale-90" title="Delete trade">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
-        
-        <div v-if="loading" class="flex justify-center py-12">
-          <div class="spinner"></div>
-        </div>
-        
-        <div v-else-if="filteredTrades.length === 0" class="empty-state glass-card">
-          <i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 text-slate-600"></i>
-          <h3 class="text-xl font-semibold text-slate-400 mb-2">No Trades Yet</h3>
-          <p class="text-slate-500">{{ tradeFilter === 'mine' ? 'You haven\'t posted any trades yet.' : 'Be the first to post a trade!' }}</p>
-        </div>
-        
-        <div v-else class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div v-for="trade in filteredTrades" :key="trade.id" class="trade-card glass-card p-5">
-            <div class="flex items-start justify-between mb-4">
-              <div class="flex items-center gap-3">
-                <img :src="trade.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(trade.username || 'User')" 
-                     :alt="trade.username" class="w-10 h-10 rounded-full object-cover border-2 border-violet-500/50" @error="handleAvatarError">
-                <div>
-                  <div class="font-semibold text-violet-300">{{ trade.username || 'Anonymous' }}</div>
-                  <div class="text-xs text-slate-500 flex items-center gap-2">
-                    <span>{{ formatTime(trade.timestamp) }}</span>
-                    <span class="expiry-badge" :class="{ 'expiring-soon': isExpiringSoon(trade.timestamp) }">
-                      <i data-lucide="clock" class="w-3 h-3"></i>
-                      {{ getDaysUntilExpiry(trade.timestamp) }}d left
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <button v-if="user && trade.uid === user.uid" @click="handleDeleteTrade(trade.id)" class="text-slate-400 hover:text-red-400 p-2 transition-colors" title="Delete Trade">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
+
+        <!-- Description -->
+        <p v-if="trade.description" class="text-sm text-slate-300 bg-slate-800/30 rounded-lg p-3 mb-3 leading-relaxed">{{ trade.description }}</p>
+
+        <!-- Offering / Seeking grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+          <!-- OFFERING -->
+          <div class="bg-emerald-500/[.04] border border-emerald-500/10 rounded-xl p-3">
+            <div class="flex items-center gap-1.5 mb-2">
+              <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Offering</span>
             </div>
-            
-            <p v-if="trade.description" class="text-slate-300 text-sm mb-4 line-clamp-2">{{ trade.description }}</p>
-            
-            <div class="grid grid-cols-[1fr,auto,1fr] gap-2 mb-4">
-              <div>
-                <div class="text-xs text-emerald-400 font-semibold mb-2 flex items-center gap-1">
-                  <i data-lucide="arrow-up" class="w-3 h-3"></i> HAVE
-                </div>
-                <div class="multi-item-container" v-if="trade.offering?.length">
-                  <div v-for="(item, idx) in trade.offering" :key="idx" class="multi-item-card">
-                    <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
-                    <div class="item-name">{{ getItemName(item.id) }}</div>
-                    <div class="item-qty">x{{ item.quantity }}</div>
-                  </div>
-                </div>
-                <div v-else-if="!trade.purseOffering" class="text-slate-500 text-xs py-4 text-center">No items</div>
-                <div v-if="trade.purseOffering" class="purse-badge mt-2">
-                  <i data-lucide="wallet" class="w-3 h-3"></i>
-                  {{ formatNumber(trade.purseOffering) }}
-                </div>
+            <div class="space-y-1.5">
+              <div v-for="it in safeItems(trade.offering)" :key="it.itemId"
+                   class="flex items-center gap-2 bg-slate-800/30 rounded-lg p-1.5">
+                <img v-if="it.imageUrl" :src="it.imageUrl" class="w-7 h-7 rounded object-cover shrink-0" loading="lazy">
+                <div v-else class="w-7 h-7 bg-slate-700 rounded flex items-center justify-center shrink-0"><i data-lucide="package" class="w-3.5 h-3.5 text-slate-500"></i></div>
+                <span class="text-sm truncate flex-1">{{ it.name }}</span>
+                <span class="text-xs font-mono text-emerald-400 shrink-0">×{{ it.count }}</span>
               </div>
-              
-              <div class="trade-arrow">
-                <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
-              </div>
-              
-              <div>
-                <div class="text-xs text-cyan-400 font-semibold mb-2 flex items-center gap-1">
-                  <i data-lucide="arrow-down" class="w-3 h-3"></i> WANT
-                </div>
-                <div class="multi-item-container" v-if="trade.seeking?.length">
-                  <div v-for="(item, idx) in trade.seeking" :key="idx" class="multi-item-card">
-                    <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
-                    <div class="item-name">{{ getItemName(item.id) }}</div>
-                    <div class="item-qty">x{{ item.quantity }}</div>
-                  </div>
-                </div>
-                <div v-else-if="!trade.purseSeeking" class="text-slate-500 text-xs py-4 text-center">No items</div>
-                <div v-if="trade.purseSeeking" class="purse-badge mt-2">
-                  <i data-lucide="wallet" class="w-3 h-3"></i>
-                  {{ formatNumber(trade.purseSeeking) }}
-                </div>
+              <div v-if="(trade.offering && trade.offering.purse) > 0" class="flex items-center gap-2 bg-amber-500/10 rounded-lg p-1.5">
+                <i data-lucide="wallet" class="w-4 h-4 text-amber-400 shrink-0"></i>
+                <span class="text-sm text-amber-300">{{ num(trade.offering.purse) }} Purse</span>
               </div>
             </div>
-            
-            <button class="btn-secondary w-full text-sm" @click="contactTrader(trade)">
-              <span class="flex items-center justify-center gap-2">
-                <i data-lucide="message-circle" class="w-4 h-4"></i>
-                Contact Trader
-              </span>
-            </button>
+          </div>
+
+          <!-- SEEKING -->
+          <div class="bg-violet-500/[.04] border border-violet-500/10 rounded-xl p-3">
+            <div class="flex items-center gap-1.5 mb-2">
+              <i data-lucide="arrow-down-left" class="w-3.5 h-3.5 text-violet-400"></i>
+              <span class="text-[10px] font-bold text-violet-400 uppercase tracking-widest">Seeking</span>
+            </div>
+            <div class="space-y-1.5">
+              <div v-for="it in safeItems(trade.seeking)" :key="it.itemId"
+                   class="flex items-center gap-2 bg-slate-800/30 rounded-lg p-1.5">
+                <img v-if="it.imageUrl" :src="it.imageUrl" class="w-7 h-7 rounded object-cover shrink-0" loading="lazy">
+                <div v-else class="w-7 h-7 bg-slate-700 rounded flex items-center justify-center shrink-0"><i data-lucide="package" class="w-3.5 h-3.5 text-slate-500"></i></div>
+                <span class="text-sm truncate flex-1">{{ it.name }}</span>
+                <span class="text-xs font-mono text-violet-400 shrink-0">×{{ it.count }}</span>
+              </div>
+              <div v-if="(trade.seeking && trade.seeking.purse) > 0" class="flex items-center gap-2 bg-amber-500/10 rounded-lg p-1.5">
+                <i data-lucide="wallet" class="w-4 h-4 text-amber-400 shrink-0"></i>
+                <span class="text-sm text-amber-300">{{ num(trade.seeking.purse) }} Purse</span>
+              </div>
+            </div>
           </div>
         </div>
+      </div><!-- /trade card -->
+    </div>
+  </main>
+
+  <!-- ═══════════════ PROFILE SETUP MODAL (mandatory · un-closable) ═══════════════ -->
+  <Teleport to="body">
+    <div v-if="showProfileModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-700/50 rounded-2xl p-6 w-full max-w-sm modal-pop">
+        <div class="text-center mb-5">
+          <div class="w-14 h-14 bg-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <i data-lucide="user-round-pen" class="w-7 h-7 text-violet-400"></i>
+          </div>
+          <h3 class="text-lg font-bold">Choose Your FakePixel Name</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">This name will be shown on all your trades. You can't change it later without contacting an admin.</p>
+        </div>
+        <input v-model.trim="newFakepixelName" type="text" maxlength="24"
+               placeholder="e.g. PixelMaster42"
+               class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all mb-2"
+               @keyup.enter="saveProfile">
+        <p class="text-[11px] text-slate-500 mb-4">3–24 characters · letters, numbers, underscores</p>
+        <button @click="saveProfile" :disabled="!isValidName || profileSaving"
+                class="w-full bg-violet-600 hover:bg-violet-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl font-semibold transition-all active:scale-95">
+          {{ profileSaving ? 'Saving…' : 'Continue to Trading Hub' }}
+        </button>
       </div>
-    </section>
-    
-    <!-- Profile Edit Modal -->
-    <div v-if="showProfileModal" class="modal-overlay" @click.self="showProfileModal = false">
-      <div class="modal-content glass-modal max-w-md">
-        <div class="flex items-center justify-between mb-6">
-          <h3 class="text-xl font-bold flex items-center gap-2">
-            <i data-lucide="user-cog" class="w-5 h-5 text-violet-400"></i>
-            Profile Settings
+    </div>
+  </Teleport>
+
+  <!-- ═══════════════ CREATE TRADE MODAL ═══════════════ -->
+  <Teleport to="body">
+    <div v-if="showCreateModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-[150] flex items-start justify-center p-3 overflow-y-auto scroll-gpu"
+         @click.self="showCreateModal = false">
+      <div class="bg-slate-900 border border-slate-700/50 rounded-2xl w-full max-w-2xl my-4 modal-pop" @click.stop>
+
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b border-slate-800/50">
+          <h3 class="text-base font-bold flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-5 h-5 text-violet-400"></i>
+            Create New Trade
           </h3>
-          <button @click="showProfileModal = false" class="text-slate-400 hover:text-white">
-            <i data-lucide="x" class="w-6 h-6"></i>
+          <button @click="showCreateModal = false" class="p-1.5 text-slate-400 hover:text-white transition-colors active:scale-90">
+            <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
-        
-        <div class="flex items-center gap-4 mb-6 p-4 bg-dark-700/50 rounded-xl">
-          <img :src="user?.photoURL || 'https://ui-avatars.com/api/?name=User'" class="w-16 h-16 rounded-full border-2 border-violet-500">
+
+        <!-- Body -->
+        <div class="p-4 space-y-4 max-h-[72vh] overflow-y-auto scroll-gpu">
+
+          <!-- Description -->
           <div>
-            <div class="font-semibold">{{ user?.displayName }}</div>
-            <div class="text-sm text-slate-400">{{ user?.email }}</div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Description <span class="text-slate-600">(optional)</span></label>
+            <textarea v-model="tradeDesc" rows="2" placeholder="Any extra details about your trade…"
+                      class="w-full bg-slate-800/50 border border-slate-700/40 rounded-xl px-4 py-3 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40 resize-none transition-all"></textarea>
+          </div>
+
+          <!-- ────── OFFERING ────── -->
+          <div class="bg-emerald-500/[.04] border border-emerald-500/10 rounded-xl p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <i data-lucide="arrow-up-right" class="w-4 h-4 text-emerald-400"></i>
+              <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">What You're Offering</span>
+            </div>
+
+            <!-- Purse -->
+            <div class="mb-3">
+              <label class="text-[11px] text-slate-400 mb-1 block">Purse Amount</label>
+              <div class="relative">
+                <i data-lucide="wallet" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <input v-model.number="offPurse" type="number" min="0" placeholder="0"
+                       class="w-full bg-slate-800/50 border border-slate-700/40 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all">
+              </div>
+            </div>
+
+            <!-- Item search -->
+            <div class="relative mb-3">
+              <label class="text-[11px] text-slate-400 mb-1 block">Add Items</label>
+              <div class="relative">
+                <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <input v-model="offSearch" type="text" placeholder="Search items…"
+                       @focus="offSearchOpen = true" @blur="blurOff"
+                       class="w-full bg-slate-800/50 border border-slate-700/40 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all">
+              </div>
+              <!-- Dropdown -->
+              <div v-show="offSearchOpen && filteredOff.length" class="absolute z-20 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl max-h-40 overflow-y-auto scroll-gpu">
+                <button v-for="item in filteredOff" :key="item.id" @mousedown.prevent="pickOff(item)"
+                        class="w-full flex items-center gap-2 px-3 py-2 hover:bg-violet-600/20 text-left text-sm transition-colors">
+                  <img v-if="item.imageUrl" :src="item.imageUrl" class="w-6 h-6 rounded object-cover" loading="lazy">
+                  <div v-else class="w-6 h-6 bg-slate-700 rounded flex items-center justify-center"><i data-lucide="package" class="w-3 h-3 text-slate-500"></i></div>
+                  <span class="flex-1 truncate">{{ item.name }}</span>
+                  <span :class="getRarityBg(item.rarity)" class="text-[10px] font-bold px-1.5 py-0.5 rounded">{{ item.rarity }}</span>
+                </button>
+              </div>
+              <p v-if="offSearchOpen && !filteredOff.length && allItems.length" class="text-xs text-slate-500 mt-1">No items match your search.</p>
+              <p v-if="!allItems.length" class="text-xs text-slate-500 mt-1">No items in database. Ask an admin to add some.</p>
+            </div>
+
+            <!-- Selected items -->
+            <div class="space-y-1.5">
+              <div v-for="(it, idx) in offItems" :key="idx" class="flex items-center gap-2 bg-slate-800/40 rounded-lg p-2">
+                <img v-if="it.imageUrl" :src="it.imageUrl" class="w-7 h-7 rounded object-cover shrink-0" loading="lazy">
+                <span class="text-sm flex-1 truncate">{{ it.name }}</span>
+                <input v-model.number="it.count" type="number" min="1"
+                       class="w-14 bg-slate-700 border border-slate-600 rounded px-1.5 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <button @click="offItems.splice(idx,1)" class="p-1 text-slate-500 hover:text-red-400 transition-colors active:scale-90">
+                  <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Swap divider -->
+          <div class="flex justify-center -my-1">
+            <div class="w-9 h-9 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700">
+              <i data-lucide="arrow-down-up" class="w-4 h-4 text-violet-400"></i>
+            </div>
+          </div>
+
+          <!-- ────── SEEKING ────── -->
+          <div class="bg-violet-500/[.04] border border-violet-500/10 rounded-xl p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <i data-lucide="arrow-down-left" class="w-4 h-4 text-violet-400"></i>
+              <span class="text-xs font-bold text-violet-400 uppercase tracking-wider">What You're Seeking</span>
+            </div>
+
+            <!-- Purse -->
+            <div class="mb-3">
+              <label class="text-[11px] text-slate-400 mb-1 block">Purse Amount</label>
+              <div class="relative">
+                <i data-lucide="wallet" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <input v-model.number="seekPurse" type="number" min="0" placeholder="0"
+                       class="w-full bg-slate-800/50 border border-slate-700/40 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-all">
+              </div>
+            </div>
+
+            <!-- Item search -->
+            <div class="relative mb-3">
+              <label class="text-[11px] text-slate-400 mb-1 block">Add Items</label>
+              <div class="relative">
+                <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <input v-model="seekSearch" type="text" placeholder="Search items…"
+                       @focus="seekSearchOpen = true" @blur="blurSeek"
+                       class="w-full bg-slate-800/50 border border-slate-700/40 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-all">
+              </div>
+              <div v-show="seekSearchOpen && filteredSeek.length" class="absolute z-20 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl max-h-40 overflow-y-auto scroll-gpu">
+                <button v-for="item in filteredSeek" :key="item.id" @mousedown.prevent="pickSeek(item)"
+                        class="w-full flex items-center gap-2 px-3 py-2 hover:bg-violet-600/20 text-left text-sm transition-colors">
+                  <img v-if="item.imageUrl" :src="item.imageUrl" class="w-6 h-6 rounded object-cover" loading="lazy">
+                  <div v-else class="w-6 h-6 bg-slate-700 rounded flex items-center justify-center"><i data-lucide="package" class="w-3 h-3 text-slate-500"></i></div>
+                  <span class="flex-1 truncate">{{ item.name }}</span>
+                  <span :class="getRarityBg(item.rarity)" class="text-[10px] font-bold px-1.5 py-0.5 rounded">{{ item.rarity }}</span>
+                </button>
+              </div>
+              <p v-if="seekSearchOpen && !filteredSeek.length && allItems.length" class="text-xs text-slate-500 mt-1">No items match your search.</p>
+            </div>
+
+            <!-- Selected items -->
+            <div class="space-y-1.5">
+              <div v-for="(it, idx) in seekItems" :key="idx" class="flex items-center gap-2 bg-slate-800/40 rounded-lg p-2">
+                <img v-if="it.imageUrl" :src="it.imageUrl" class="w-7 h-7 rounded object-cover shrink-0" loading="lazy">
+                <span class="text-sm flex-1 truncate">{{ it.name }}</span>
+                <input v-model.number="it.count" type="number" min="1"
+                       class="w-14 bg-slate-700 border border-slate-600 rounded px-1.5 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-violet-500">
+                <button @click="seekItems.splice(idx,1)" class="p-1 text-slate-500 hover:text-red-400 transition-colors active:scale-90">
+                  <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        
-        <div class="mb-6">
-          <label class="block text-sm text-slate-400 mb-2">
-            <i data-lucide="gamepad-2" class="w-4 h-4 inline mr-1"></i>
-            Fakepixel Username
-          </label>
-          <input v-model="profileUsername" type="text" class="input-field" placeholder="Your in-game username" maxlength="16">
-          <p class="text-xs text-slate-500 mt-2">This is the name other players will see on your trades.</p>
-        </div>
-        
-        <div v-if="profileError" class="text-red-400 text-sm mb-4 flex items-center gap-2">
-          <i data-lucide="alert-circle" class="w-4 h-4"></i>
-          {{ profileError }}
-        </div>
-        
-        <div v-if="profileSuccess" class="text-emerald-400 text-sm mb-4 flex items-center gap-2">
-          <i data-lucide="check-circle" class="w-4 h-4"></i>
-          {{ profileSuccess }}
-        </div>
-        
-        <div class="flex gap-3">
-          <button @click="showProfileModal = false" class="btn-secondary flex-1">Cancel</button>
-          <button @click="saveProfile" class="btn-primary flex-1" :disabled="savingProfile">
-            <span v-if="savingProfile" class="flex items-center justify-center gap-2">
-              <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            </span>
-            <span v-else>Save Changes</span>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-slate-800/50 flex gap-3">
+          <button @click="showCreateModal = false"
+                  class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95">Cancel</button>
+          <button @click="submitTrade" :disabled="tradeSubmitting"
+                  class="flex-1 bg-violet-600 hover:bg-violet-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 shadow-lg shadow-violet-600/20">
+            {{ tradeSubmitting ? 'Creating…' : 'Post Trade' }}
           </button>
         </div>
       </div>
     </div>
-    
-    <!-- Contact Modal -->
-    <div v-if="showContactModal" class="modal-overlay" @click.self="showContactModal = false">
-      <div class="modal-content glass-modal">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-xl font-bold">Contact Trader</h3>
-          <button @click="showContactModal = false" class="text-slate-400 hover:text-white">
-            <i data-lucide="x" class="w-6 h-6"></i>
-          </button>
-        </div>
-        <div class="flex items-center gap-4 mb-4">
-          <img :src="selectedTrade?.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(selectedTrade?.username || 'User')" class="w-12 h-12 rounded-full border-2 border-violet-500">
-          <div>
-            <div class="font-semibold text-violet-300">{{ selectedTrade?.username }}</div>
-            <div class="text-sm text-slate-400">Active Trader</div>
-          </div>
-        </div>
-        <p class="text-slate-400 mb-4">To complete this trade, message them in-game on Fakepixel:</p>
-        <div class="bg-dark-700 rounded-lg p-4 mb-4 font-mono text-sm">
-          <code class="text-cyan-400">/msg {{ selectedTrade?.username }} I'm interested in your trade!</code>
-        </div>
-        <button @click="showContactModal = false" class="btn-primary w-full">Got it!</button>
-      </div>
-    </div>
-  </div>
-  
-  <script src="app.js"></script>
-  
-  <script>
-    const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
-    
-    createApp({
-      setup() {
-        const user = ref(null);
-        const userProfile = ref(null);
-        const authLoading = ref(true);
-        const authMessage = ref('Initializing...');
-        const items = ref([]);
-        const trades = ref([]);
-        const loading = ref(true);
-        const onlineCount = ref(Math.floor(Math.random() * 50) + 20);
-        const showContactModal = ref(false);
-        const showProfileModal = ref(false);
-        const selectedTrade = ref(null);
-        const tradeFilter = ref('all');
-        const tradeError = ref('');
-        const posting = ref(false);
-        const userTradeCount = ref(0);
-        const isUserAdmin = ref(false);
-        
-        // Mandatory profile setup
-        const showMandatoryProfile = ref(false);
-        const mandatoryUsername = ref('');
-        const mandatoryError = ref('');
-        const savingMandatory = ref(false);
-        
-        // Profile edit
-        const profileUsername = ref('');
-        const profileError = ref('');
-        const profileSuccess = ref('');
-        const savingProfile = ref(false);
-        
-        // New trade form
-        const newTrade = ref({
-          description: '',
-          offering: [],
-          seeking: [],
-          purseOffering: 0,
-          purseSeeking: 0
-        });
-        
-        const selectedOfferingItem = ref('');
-        const offeringQty = ref(1);
-        const offeringSearch = ref('');
-        const selectedSeekingItem = ref('');
-        const seekingQty = ref(1);
-        const seekingSearch = ref('');
-        
-        let unsubscribeItems = null;
-        let unsubscribeTrades = null;
-        let unsubscribeAuth = null;
-        let unsubscribeProfile = null;
-        let unsubscribeAdminStatus = null;
-        
-        const userDisplayName = computed(() => {
-          return userProfile.value?.fakepixelName || user.value?.displayName || 'User';
-        });
-        
-        const filteredOfferingItems = computed(() => {
-          if (!offeringSearch.value) return items.value;
-          const search = offeringSearch.value.toLowerCase();
-          return items.value.filter(item => item.name?.toLowerCase().includes(search));
-        });
-        
-        const filteredSeekingItems = computed(() => {
-          if (!seekingSearch.value) return items.value;
-          const search = seekingSearch.value.toLowerCase();
-          return items.value.filter(item => item.name?.toLowerCase().includes(search));
-        });
-        
-        const filteredTrades = computed(() => {
-          if (tradeFilter.value === 'mine' && user.value) {
-            return trades.value.filter(t => t.uid === user.value.uid);
-          }
-          return trades.value;
-        });
-        
-        const canPostTrade = computed(() => {
-          const hasOfferingItems = newTrade.value.offering.length > 0;
-          const hasOfferingPurse = newTrade.value.purseOffering > 0;
-          const hasSeekingItems = newTrade.value.seeking.length > 0;
-          const hasSeekingPurse = newTrade.value.purseSeeking > 0;
-          
-          const hasOffering = hasOfferingItems || hasOfferingPurse;
-          const hasSeeking = hasSeekingItems || hasSeekingPurse;
-          
-          return hasOffering && hasSeeking && userTradeCount.value < 5 && userProfile.value?.fakepixelName;
-        });
-        
-        const formatNumber = (num) => window.FakepixelHub.formatNumber(num);
-        const formatTime = (timestamp) => window.FakepixelHub.formatRelativeTime(timestamp);
-        const getDaysUntilExpiry = (timestamp) => window.FakepixelHub.getDaysUntilExpiry(timestamp);
-        const isExpiringSoon = (timestamp) => window.FakepixelHub.isExpiringSoon(timestamp);
-        
-        const getItemName = (itemId) => {
-          const item = items.value.find(i => i.id === itemId);
-          return item ? item.name : 'Market Data Pending';
-        };
-        
-        const getItemImage = (itemId) => {
-          const item = items.value.find(i => i.id === itemId);
-          return item?.imageUrl || 'https://via.placeholder.com/40?text=?';
-        };
-        
-        const handleImageError = (e) => { e.target.src = 'https://via.placeholder.com/40?text=?'; };
-        const handleAvatarError = (e) => { e.target.src = 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff'; };
-        
-        const addOfferingItem = () => {
-          if (!selectedOfferingItem.value) return;
-          newTrade.value.offering.push({ id: selectedOfferingItem.value, quantity: offeringQty.value || 1 });
-          selectedOfferingItem.value = '';
-          offeringQty.value = 1;
-          refreshIcons();
-        };
-        
-        const removeOfferingItem = (idx) => { newTrade.value.offering.splice(idx, 1); };
-        
-        const addSeekingItem = () => {
-          if (!selectedSeekingItem.value) return;
-          newTrade.value.seeking.push({ id: selectedSeekingItem.value, quantity: seekingQty.value || 1 });
-          selectedSeekingItem.value = '';
-          seekingQty.value = 1;
-          refreshIcons();
-        };
-        
-        const removeSeekingItem = (idx) => { newTrade.value.seeking.splice(idx, 1); };
-        
-        const postTrade = async () => {
-          if (!canPostTrade.value || userTradeCount.value >= 5) return;
-          
-          posting.value = true;
-          tradeError.value = '';
-          
-          const result = await window.FakepixelHub.createTrade({
-            description: newTrade.value.description.trim(),
-            offering: newTrade.value.offering,
-            seeking: newTrade.value.seeking,
-            purseOffering: newTrade.value.purseOffering || 0,
-            purseSeeking: newTrade.value.purseSeeking || 0
-          }, userProfile.value?.fakepixelName);
-          
-          if (result.success) {
-            newTrade.value = { description: '', offering: [], seeking: [], purseOffering: 0, purseSeeking: 0 };
-            await updateUserTradeCount();
-          } else {
-            tradeError.value = result.error;
-          }
-          
-          posting.value = false;
-        };
-        
-        const handleDeleteTrade = async (tradeId) => {
-          if (confirm('Delete this trade?')) {
-            const result = await window.FakepixelHub.deleteTrade(tradeId);
-            if (result.success) await updateUserTradeCount();
-            else alert(result.error);
-          }
-        };
-        
-        const contactTrader = (trade) => {
-          selectedTrade.value = trade;
-          showContactModal.value = true;
-          refreshIcons();
-        };
-        
-        const handleGoogleSignIn = async () => {
-          authLoading.value = true;
-          authMessage.value = 'Redirecting to Google...';
-          await window.FakepixelHub.signInWithGoogle();
-        };
-        
-        const handleSignOut = async () => {
-          await window.FakepixelHub.signOut();
-          user.value = null;
-          userProfile.value = null;
-          userTradeCount.value = 0;
-          isUserAdmin.value = false;
-          showMandatoryProfile.value = false;
-        };
-        
-        const saveMandatoryProfile = async () => {
-          mandatoryError.value = '';
-          savingMandatory.value = true;
-          
-          const result = await window.FakepixelHub.setFakepixelUsername(user.value.uid, mandatoryUsername.value);
-          
-          if (result.success) {
-            userProfile.value = { ...userProfile.value, fakepixelName: mandatoryUsername.value.trim() };
-            showMandatoryProfile.value = false;
-          } else {
-            mandatoryError.value = result.error;
-          }
-          
-          savingMandatory.value = false;
-        };
-        
-        const saveProfile = async () => {
-          profileError.value = '';
-          profileSuccess.value = '';
-          savingProfile.value = true;
-          
-          const result = await window.FakepixelHub.setFakepixelUsername(user.value.uid, profileUsername.value);
-          
-          if (result.success) {
-            profileSuccess.value = 'Username updated!';
-            userProfile.value = { ...userProfile.value, fakepixelName: profileUsername.value.trim() };
-            setTimeout(() => { showProfileModal.value = false; profileSuccess.value = ''; }, 1500);
-          } else {
-            profileError.value = result.error;
-          }
-          
-          savingProfile.value = false;
-        };
-        
-        const updateUserTradeCount = async () => {
-          if (user.value) {
-            userTradeCount.value = await window.FakepixelHub.countUserTrades(user.value.uid);
-          } else {
-            userTradeCount.value = 0;
-          }
-        };
-        
-        const refreshIcons = () => { setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50); };
-        
-        onMounted(async () => {
-          if (window.FakepixelHub.initFirebase()) {
-            authMessage.value = 'Checking login...';
-            
-            // CRITICAL: Handle auth callback FIRST (for redirect flow)
-            const callbackResult = await window.FakepixelHub.handleAuthCallback();
-            
-            if (callbackResult) {
-              authMessage.value = 'Loading profile...';
-            }
-            
-            // Auth state listener (secondary to callback)
-            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
-              user.value = userData;
-              authLoading.value = false;
-              
-              if (userData) {
-                await updateUserTradeCount();
-                
-                // Subscribe to profile changes
-                unsubscribeProfile = window.FakepixelHub.subscribeToUserProfile(userData.uid, (profile) => {
-                  userProfile.value = profile;
-                  
-                  // Show mandatory profile if no fakepixelName
-                  if (!profile?.fakepixelName) {
-                    showMandatoryProfile.value = true;
-                  } else {
-                    showMandatoryProfile.value = false;
-                    profileUsername.value = profile.fakepixelName;
-                  }
-                });
-                
-                // Check admin status
-                unsubscribeAdminStatus = window.FakepixelHub.subscribeToAdminStatus(userData.email, (isAdmin) => {
-                  isUserAdmin.value = isAdmin;
-                  refreshIcons();
-                });
-              } else {
-                userProfile.value = null;
-                isUserAdmin.value = false;
-                showMandatoryProfile.value = false;
-              }
-              
-              refreshIcons();
-            });
-            
-            // Items listener
-            unsubscribeItems = window.FakepixelHub.subscribeToItems((data) => { items.value = data; });
-            
-            // Trades listener
-            unsubscribeTrades = window.FakepixelHub.subscribeToTrades((data) => {
-              trades.value = data;
-              loading.value = false;
-              refreshIcons();
-            });
-          } else {
-            loading.value = false;
-            authLoading.value = false;
-          }
-          
-          refreshIcons();
-          setInterval(() => { onlineCount.value = Math.floor(Math.random() * 50) + 20; }, 30000);
-        });
-        
-        onUnmounted(() => {
-          if (unsubscribeItems) unsubscribeItems();
-          if (unsubscribeTrades) unsubscribeTrades();
-          if (unsubscribeAuth) unsubscribeAuth();
-          if (unsubscribeProfile) unsubscribeProfile();
-          if (unsubscribeAdminStatus) unsubscribeAdminStatus();
-        });
-        
-        watch(user, updateUserTradeCount);
-        watch(showProfileModal, () => {
-          if (showProfileModal.value && userProfile.value?.fakepixelName) {
-            profileUsername.value = userProfile.value.fakepixelName;
-          }
-          refreshIcons();
-        });
-        
-        return {
-          user, userProfile, userDisplayName, authLoading, authMessage, items, trades, loading, onlineCount,
-          newTrade, selectedOfferingItem, offeringQty, offeringSearch, filteredOfferingItems,
-          selectedSeekingItem, seekingQty, seekingSearch, filteredSeekingItems, canPostTrade,
-          tradeFilter, filteredTrades, showContactModal, showProfileModal, selectedTrade,
-          tradeError, posting, userTradeCount, isUserAdmin,
-          showMandatoryProfile, mandatoryUsername, mandatoryError, savingMandatory,
-          profileUsername, profileError, profileSuccess, savingProfile,
-          formatNumber, formatTime, getDaysUntilExpiry, isExpiringSoon,
-          getItemName, getItemImage, handleImageError, handleAvatarError,
-          addOfferingItem, removeOfferingItem, addSeekingItem, removeSeekingItem,
-          postTrade, handleDeleteTrade, contactTrader, handleGoogleSignIn, handleSignOut,
-          saveMandatoryProfile, saveProfile
-        };
+  </Teleport>
+
+</div><!-- /#app -->
+
+<!-- ═══════════════ SCRIPTS ═══════════════ -->
+<script src="app.js"></script>
+<script>
+var VueApp = Vue.createApp({
+
+  data: function () {
+    return {
+      // Auth
+      authLoading: true,
+      user: null,
+      userProfile: null,
+      isUserAdmin: false,
+
+      // Profile modal
+      showProfileModal: false,
+      newFakepixelName: "",
+      profileSaving: false,
+
+      // Trades
+      trades: [],
+      tradeSearch: "",
+      unsubTrades: null,
+
+      // Create Trade modal
+      showCreateModal: false,
+      tradeDesc: "",
+      offItems: [],
+      offPurse: 0,
+      offSearch: "",
+      offSearchOpen: false,
+      seekItems: [],
+      seekPurse: 0,
+      seekSearch: "",
+      seekSearchOpen: false,
+      tradeSubmitting: false,
+
+      // Items catalogue
+      allItems: []
+    };
+  },
+
+  computed: {
+    displayName: function () {
+      if (this.userProfile && this.userProfile.fakepixelName) return this.userProfile.fakepixelName;
+      if (this.user) return this.user.displayName || "User";
+      return "User";
+    },
+    isValidName: function () {
+      var n = (this.newFakepixelName || "").trim();
+      return n.length >= 3 && n.length <= 24 && /^[a-zA-Z0-9_]+$/.test(n);
+    },
+    filteredTrades: function () {
+      if (!this.tradeSearch) return this.trades;
+      var q = this.tradeSearch.toLowerCase();
+      return this.trades.filter(function (t) {
+        if ((t.fakepixelName || "").toLowerCase().indexOf(q) !== -1) return true;
+        if ((t.description || "").toLowerCase().indexOf(q) !== -1) return true;
+        var oItems = (t.offering && t.offering.items) || [];
+        var sItems = (t.seeking && t.seeking.items) || [];
+        if (oItems.some(function (i) { return i.name.toLowerCase().indexOf(q) !== -1; })) return true;
+        if (sItems.some(function (i) { return i.name.toLowerCase().indexOf(q) !== -1; })) return true;
+        return false;
+      });
+    },
+    filteredOff: function () {
+      var self = this;
+      var picked = this.offItems.map(function (i) { return i.itemId; });
+      var pool = this.allItems.filter(function (i) { return picked.indexOf(i.id) === -1; });
+      var q = (this.offSearch || "").toLowerCase().trim();
+      if (q) pool = pool.filter(function (i) { return i.name.toLowerCase().indexOf(q) !== -1; });
+      return pool.slice(0, 15);
+    },
+    filteredSeek: function () {
+      var self = this;
+      var picked = this.seekItems.map(function (i) { return i.itemId; });
+      var pool = this.allItems.filter(function (i) { return picked.indexOf(i.id) === -1; });
+      var q = (this.seekSearch || "").toLowerCase().trim();
+      if (q) pool = pool.filter(function (i) { return i.name.toLowerCase().indexOf(q) !== -1; });
+      return pool.slice(0, 15);
+    }
+  },
+
+  watch: {
+    showCreateModal: function (v) { if (v) this.$nextTick(refreshIcons); },
+    showProfileModal: function (v) { if (v) this.$nextTick(refreshIcons); }
+  },
+
+  async created() {
+    await this.bootstrapAuth();
+  },
+
+  updated: function () {
+    var self = this;
+    clearTimeout(self._iconTick);
+    self._iconTick = setTimeout(refreshIcons, 60);
+  },
+
+  methods: {
+    /* ── Auth bootstrap (THE fix for S24 FE) ── */
+    bootstrapAuth: async function () {
+      try {
+        await handleAuthCallback();                 // resolve redirect first
+      } catch (_) { /* swallowed */ }
+
+      var self = this;
+      auth.onAuthStateChanged(async function (user) {
+        if (user) {
+          self.user = user;
+          await self.loadUserData(user);
+        } else {
+          self.user = null;
+          self.userProfile = null;
+          self.isUserAdmin = false;
+        }
+        // ★ Only NOW do we stop showing the loader
+        self.authLoading = false;
+        self.$nextTick(refreshIcons);
+      });
+    },
+
+    loadUserData: async function (user) {
+      await syncUserProfile(user);
+      this.userProfile = await getUserProfile(user.uid);
+      this.isUserAdmin = await checkIsAdmin(user.email);
+
+      if (!this.userProfile || !this.userProfile.fakepixelName) {
+        this.showProfileModal = true;
       }
-    }).mount('#app');
-  </script>
+
+      // Fetch items
+      this.allItems = await fetchItems();
+
+      // Real-time trades listener
+      if (this.unsubTrades) this.unsubTrades();
+      var self = this;
+      this.unsubTrades = listenToTrades(function (list) {
+        self.trades = list;
+        self.$nextTick(refreshIcons);
+      });
+    },
+
+    handleSignIn: async function () { await signInWithGoogle(); },
+    handleSignOut: async function () {
+      if (this.unsubTrades) { this.unsubTrades(); this.unsubTrades = null; }
+      await signOutUser();
+    },
+
+    /* ── Profile ── */
+    saveProfile: async function () {
+      if (!this.isValidName || this.profileSaving) return;
+      this.profileSaving = true;
+      try {
+        await setFakepixelName(this.user.uid, this.newFakepixelName.trim());
+        this.userProfile = await getUserProfile(this.user.uid);
+        this.showProfileModal = false;
+        showToast("Profile saved! Welcome, " + this.userProfile.fakepixelName, "success");
+      } catch (e) {
+        showToast("Failed to save profile: " + e.message, "error");
+      }
+      this.profileSaving = false;
+    },
+
+    /* ── Create Trade ── */
+    openCreateModal: function () {
+      this.tradeDesc = "";
+      this.offItems = [];
+      this.offPurse = 0;
+      this.offSearch = "";
+      this.offSearchOpen = false;
+      this.seekItems = [];
+      this.seekPurse = 0;
+      this.seekSearch = "";
+      this.seekSearchOpen = false;
+      this.showCreateModal = true;
+    },
+
+    pickOff: function (item) {
+      if (!this.offItems.find(function (i) { return i.itemId === item.id; })) {
+        this.offItems.push({ itemId: item.id, name: item.name, imageUrl: item.imageUrl || "", count: 1 });
+      }
+      this.offSearch = "";
+    },
+    pickSeek: function (item) {
+      if (!this.seekItems.find(function (i) { return i.itemId === item.id; })) {
+        this.seekItems.push({ itemId: item.id, name: item.name, imageUrl: item.imageUrl || "", count: 1 });
+      }
+      this.seekSearch = "";
+    },
+
+    blurOff: function () { var self = this; setTimeout(function () { self.offSearchOpen = false; }, 180); },
+    blurSeek: function () { var self = this; setTimeout(function () { self.seekSearchOpen = false; }, 180); },
+
+    submitTrade: async function () {
+      this.tradeSubmitting = true;
+      try {
+        await createTrade(
+          this.user.uid,
+          this.userProfile.fakepixelName,
+          { items: this.offItems, purse: this.offPurse || 0 },
+          { items: this.seekItems, purse: this.seekPurse || 0 },
+          this.tradeDesc
+        );
+        this.showCreateModal = false;
+        showToast("Trade posted successfully!", "success");
+      } catch (e) {
+        showToast(e.message, "error");
+      }
+      this.tradeSubmitting = false;
+    },
+
+    handleDeleteTrade: async function (id) {
+      if (!confirm("Delete this trade?")) return;
+      try { await deleteTrade(id); showToast("Trade removed.", "info"); }
+      catch (e) { showToast("Delete failed.", "error"); }
+    },
+
+    /* ── Helpers ── */
+    canDeleteTrade: function (t) { return this.user && (t.userId === this.user.uid || this.isUserAdmin); },
+    safeItems: function (side) { return (side && side.items) ? side.items : []; },
+    avatarLetter: function (n) { return (n || "?")[0].toUpperCase(); },
+    fmtTime: function (ts) { return timeAgo(ts); },
+    num: function (v) { return (v || 0).toLocaleString(); },
+    getRarityBg: function (r) { return getRarityBg(r); }
+  }
+});
+
+VueApp.mount("#app");
+</script>
 </body>
 </html>
