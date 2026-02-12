@@ -151,25 +151,17 @@ function isSuperAdmin(email) {
   return email === SUPER_ADMIN_EMAIL;
 }
 
-// Check if user is an Admin (Database check)
+// Check if user is an Admin (Database check) - SIMPLIFIED
 async function isAdmin(email) {
   if (!email) return false;
   
-  // Super Admin always has access
-  if (isSuperAdmin(email)) return true;
+  // Super Admin always has access (hardcoded owner)
+  if (email === SUPER_ADMIN_EMAIL) return true;
   
-  try {
-    const snapshot = await getAdminsRef().once('value');
-    const admins = snapshot.val();
-    
-    if (!admins) return false;
-    
-    // Check if email exists in admins list
-    return Object.values(admins).some(admin => admin.email === email);
-  } catch (error) {
-    console.error('Error checking admin status:', error);
-    return false;
-  }
+  // Check database for dynamic admins
+  const snapshot = await database.ref('admins').once('value');
+  const admins = snapshot.val() || {};
+  return Object.values(admins).some(a => a.email === email);
 }
 
 // Subscribe to Admin Status Changes
@@ -263,31 +255,31 @@ function subscribeToAdmins(callback) {
 // AUTHENTICATION (Redirect Flow for Mobile)
 // ========================================
 
-// Google Sign-In with Redirect (Mobile Compatible)
+// Google Sign-In with Redirect (Mobile Compatible - FIXED for S24 FE)
 async function signInWithGoogle() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({
-      'client_id': GOOGLE_CLIENT_ID
+      'client_id': GOOGLE_CLIENT_ID,
+      'prompt': 'select_account'  // Forces account selection on mobile
     });
     provider.addScope('profile');
     provider.addScope('email');
     
-    // Use redirect for mobile compatibility
-    await auth.signInWithRedirect(provider);
-    return { success: true };
+    // Use redirect for mobile compatibility (S24 FE tested)
+    return auth.signInWithRedirect(provider);
   } catch (error) {
     console.error('Google Sign-In Error:', error);
     return { success: false, error: error.message };
   }
 }
 
-// Handle Redirect Result (call on page load)
+// Handle Redirect Result (call on page load) - IMPROVED
 async function handleRedirectResult() {
   try {
     const result = await auth.getRedirectResult();
     if (result.user) {
-      // Initialize user profile if new user
+      // Check if user has a profile, if not create one
       const existingProfile = await getUserProfile(result.user.uid);
       if (!existingProfile) {
         await saveUserProfile(result.user.uid, {
@@ -310,7 +302,7 @@ async function handleRedirectResult() {
     }
     return { success: true, user: null };
   } catch (error) {
-    console.error('Redirect Result Error:', error);
+    console.error('Login redirect error:', error.message);
     return { success: false, error: error.message };
   }
 }
@@ -361,74 +353,38 @@ function getCurrentUser() {
 }
 
 // ========================================
-// FIREBASE STORAGE (FIXED UPLOAD)
+// FIREBASE STORAGE (FIXED MOBILE UPLOAD)
 // ========================================
 
-// Upload Item Image to Firebase Storage - REWRITTEN
+// Upload Item Image to Firebase Storage - NATIVE MOBILE COMPATIBLE
 async function uploadItemImage(file) {
+  // Validate input
+  if (!file) {
+    return { success: false, error: 'No file provided' };
+  }
+  
+  // Validate file type
+  const validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+  if (!validTypes.includes(file.type)) {
+    return { success: false, error: 'Invalid file type. Please upload PNG, JPEG, GIF, or WebP.' };
+  }
+  
+  // Validate file size (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    return { success: false, error: 'File too large. Maximum size is 5MB.' };
+  }
+  
+  // Create unique filename
+  const filename = `items/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+  const storageRef = storage.ref(filename);
+  
   try {
-    if (!file) {
-      return { success: false, error: 'No file provided' };
-    }
-    
-    // Validate file type
-    const validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      return { success: false, error: 'Invalid file type. Please upload PNG, JPEG, GIF, or WebP.' };
-    }
-    
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      return { success: false, error: 'File too large. Maximum size is 5MB.' };
-    }
-    
-    // Create unique filename with timestamp
-    const timestamp = Date.now();
-    const fileExtension = file.name.split('.').pop();
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.]/g, '_').replace(/\.[^.]+$/, '');
-    const filename = `items/${timestamp}_${sanitizedName}.${fileExtension}`;
-    
-    // Create storage reference
-    const storageRef = storage.ref(filename);
-    
-    // Upload file with metadata
-    const metadata = {
-      contentType: file.type,
-      customMetadata: {
-        'uploadedAt': new Date().toISOString(),
-        'originalName': file.name
-      }
-    };
-    
-    // Use put() method for upload
-    const uploadTask = storageRef.put(file, metadata);
-    
-    // Wait for upload to complete
-    return new Promise((resolve, reject) => {
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          // Progress tracking (optional)
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log('Upload progress: ' + progress + '%');
-        },
-        (error) => {
-          // Handle errors
-          console.error('Upload error:', error);
-          resolve({ success: false, error: error.message });
-        },
-        async () => {
-          // Upload completed successfully
-          try {
-            const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
-            resolve({ success: true, url: downloadURL });
-          } catch (urlError) {
-            resolve({ success: false, error: 'Failed to get download URL' });
-          }
-        }
-      );
-    });
+    // Native mobile upload using put() - works on S24 FE gallery
+    const snapshot = await storageRef.put(file);
+    const url = await snapshot.ref.getDownloadURL();
+    return { success: true, url: url };
   } catch (error) {
-    console.error('Upload Error:', error);
+    console.error('Upload error:', error);
     return { success: false, error: error.message };
   }
 }
