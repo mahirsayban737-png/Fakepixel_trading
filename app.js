@@ -1,6 +1,6 @@
 /* ========================================
-   FAKEPIXEL TRADING HUB - CORE APPLICATION v4.2
-   Firebase Auth (Redirect Fixed), Storage, Real-time Database
+   FAKEPIXEL TRADING HUB - CORE APPLICATION v4.3
+   Firebase Auth (RESCUED REDIRECT FLOW), Storage, Real-time Database
    Profile System, Multi-Admin, Advanced Trading
    ======================================== */
 
@@ -23,8 +23,11 @@ const SUPER_ADMIN_EMAIL = "mahirsayban737@gmail.com";
 
 // Initialize Firebase
 let app, database, auth, storage;
+
+// AUTH STATE TRACKING - Critical for mobile
 let authInitialized = false;
-let redirectResultHandled = false;
+let redirectChecked = false;
+let currentUserData = null;
 
 function initFirebase() {
   if (typeof firebase !== 'undefined') {
@@ -37,15 +40,6 @@ function initFirebase() {
     auth = firebase.auth();
     storage = firebase.storage();
     
-    // Set persistence to LOCAL for mobile compatibility
-    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-      .then(() => {
-        console.log('Auth persistence set to LOCAL');
-      })
-      .catch((error) => {
-        console.error('Persistence error:', error);
-      });
-    
     // Run auto cleanup on init
     cleanupExpiredTrades();
     
@@ -54,31 +48,14 @@ function initFirebase() {
   return false;
 }
 
-// Database References
-function getItemsRef() {
-  return database.ref('items');
-}
-
-function getTradesRef() {
-  return database.ref('trades');
-}
-
-function getUsersRef() {
-  return database.ref('users');
-}
-
-function getAdminsRef() {
-  return database.ref('admins');
-}
-
 // ========================================
-// AUTHENTICATION (FIXED REDIRECT FLOW)
+// RESCUED AUTH FLOW - MOBILE FIX
 // ========================================
 
-// Google Sign-In with Redirect (Mobile Fixed)
+// Step 1: Set persistence and sign in with redirect
 async function signInWithGoogle() {
   try {
-    // Set persistence first
+    // CRITICAL: Set LOCAL persistence FIRST for mobile
     await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     
     const provider = new firebase.auth.GoogleAuthProvider();
@@ -92,25 +69,29 @@ async function signInWithGoogle() {
     // Use redirect for mobile compatibility
     return auth.signInWithRedirect(provider);
   } catch (error) {
-    console.error('Google Sign-In Error:', error);
+    console.error('Sign-in error:', error);
     return { success: false, error: error.message };
   }
 }
 
-// Handle Redirect Result - MUST be called BEFORE checking auth state
-async function handleRedirectResult() {
-  if (redirectResultHandled) {
-    return { success: true, user: auth.currentUser };
+// Step 2: Handle auth callback - MUST RUN IMMEDIATELY ON PAGE LOAD
+async function handleAuthCallback() {
+  if (redirectChecked) {
+    return currentUserData;
   }
   
   try {
+    // Set persistence first
+    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    
+    // Check for redirect result
     const result = await auth.getRedirectResult();
-    redirectResultHandled = true;
+    redirectChecked = true;
     
     if (result && result.user) {
       console.log('Redirect login successful:', result.user.email);
       
-      // Check if user has a profile, if not create one
+      // Create profile if new user
       const existingProfile = await getUserProfile(result.user.uid);
       if (!existingProfile) {
         await saveUserProfile(result.user.uid, {
@@ -121,45 +102,52 @@ async function handleRedirectResult() {
         });
       }
       
-      return {
-        success: true,
-        user: {
-          uid: result.user.uid,
-          displayName: result.user.displayName,
-          email: result.user.email,
-          photoURL: result.user.photoURL
-        },
+      currentUserData = {
+        uid: result.user.uid,
+        displayName: result.user.displayName,
+        email: result.user.email,
+        photoURL: result.user.photoURL,
         isNewUser: !existingProfile
       };
+      
+      return currentUserData;
     }
     
-    return { success: true, user: null };
+    // No redirect result, check current auth state
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      currentUserData = {
+        uid: currentUser.uid,
+        displayName: currentUser.displayName,
+        email: currentUser.email,
+        photoURL: currentUser.photoURL,
+        isNewUser: false
+      };
+      return currentUserData;
+    }
+    
+    return null;
   } catch (error) {
-    console.error('Redirect result error:', error);
-    redirectResultHandled = true;
-    return { success: false, error: error.message };
+    console.error('Auth callback error:', error);
+    redirectChecked = true;
+    return null;
   }
 }
 
-// Auth State Listener - WAITS for redirect result first
+// Step 3: Subscribe to auth changes (SECONDARY to redirect check)
 function onAuthStateChanged(callback) {
-  // Create a wrapper that waits for redirect result
-  const wrappedCallback = async (user) => {
-    // If we haven't handled redirect yet, wait for it
-    if (!redirectResultHandled) {
-      const redirectResult = await handleRedirectResult();
-      // If redirect gave us a user, use that instead
-      if (redirectResult.user) {
-        user = auth.currentUser;
-      }
+  return auth.onAuthStateChanged(async (user) => {
+    // Wait for redirect check if not done
+    if (!redirectChecked) {
+      await handleAuthCallback();
     }
     
     if (user) {
-      // Get Fakepixel username
+      // Get additional profile data
       const fakepixelName = await getFakepixelUsername(user.uid);
       const profile = await getUserProfile(user.uid);
       
-      callback({
+      const userData = {
         uid: user.uid,
         displayName: user.displayName,
         email: user.email,
@@ -167,20 +155,25 @@ function onAuthStateChanged(callback) {
         fakepixelName: fakepixelName,
         needsProfile: !fakepixelName,
         profile: profile
-      });
+      };
+      
+      currentUserData = userData;
+      callback(userData);
     } else {
+      currentUserData = null;
       callback(null);
     }
-  };
-  
-  return auth.onAuthStateChanged(wrappedCallback);
+    
+    authInitialized = true;
+  });
 }
 
 // Sign Out
 async function signOut() {
   try {
     await auth.signOut();
-    redirectResultHandled = false; // Reset for next login
+    currentUserData = null;
+    redirectChecked = false;
     return { success: true };
   } catch (error) {
     console.error('Sign Out Error:', error);
@@ -199,12 +192,29 @@ function getCurrentUser() {
       photoURL: user.photoURL
     };
   }
-  return null;
+  return currentUserData;
 }
 
 // ========================================
 // USER PROFILE SYSTEM
 // ========================================
+
+// Database References
+function getUsersRef() {
+  return database.ref('users');
+}
+
+function getItemsRef() {
+  return database.ref('items');
+}
+
+function getTradesRef() {
+  return database.ref('trades');
+}
+
+function getAdminsRef() {
+  return database.ref('admins');
+}
 
 // Get User Profile
 async function getUserProfile(uid) {
@@ -234,7 +244,6 @@ async function saveUserProfile(uid, profileData) {
 // Set Fakepixel Username
 async function setFakepixelUsername(uid, username) {
   try {
-    // Validate username
     if (!username || username.trim().length < 3) {
       return { success: false, error: 'Username must be at least 3 characters' };
     }
@@ -243,7 +252,6 @@ async function setFakepixelUsername(uid, username) {
       return { success: false, error: 'Username cannot exceed 16 characters' };
     }
     
-    // Check for valid Minecraft username format
     const validUsername = /^[a-zA-Z0-9_]+$/.test(username.trim());
     if (!validUsername) {
       return { success: false, error: 'Username can only contain letters, numbers, and underscores' };
@@ -306,7 +314,6 @@ async function isAdmin(email) {
     
     if (!admins) return false;
     
-    // Check if email is in the admins list
     return Object.values(admins).some(admin => admin.email === email);
   } catch (error) {
     console.error('Error checking admin status:', error);
@@ -321,7 +328,6 @@ function subscribeToAdminStatus(email, callback) {
     return null;
   }
   
-  // Super Admin always has access
   if (isSuperAdmin(email)) {
     callback(true);
     return null;
@@ -341,27 +347,23 @@ function subscribeToAdminStatus(email, callback) {
   return () => adminsRef.off('value');
 }
 
-// Add New Admin (Only Super Admin or existing Admin can do this)
+// Add New Admin
 async function addAdmin(email, addedBy) {
   try {
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return { success: false, error: 'Invalid email format' };
     }
     
-    // Can't add super admin again
     if (isSuperAdmin(email)) {
       return { success: false, error: 'This user is already the Super Admin' };
     }
     
-    // Check if already admin
     const isAlreadyAdmin = await isAdmin(email);
     if (isAlreadyAdmin) {
       return { success: false, error: 'This user is already an admin' };
     }
     
-    // Add to admins node
     const newAdminRef = getAdminsRef().push();
     await newAdminRef.set({
       email: email.toLowerCase().trim(),
@@ -407,10 +409,10 @@ function subscribeToAdmins(callback) {
 }
 
 // ========================================
-// FIREBASE STORAGE (FIXED MOBILE UPLOAD)
+// FIREBASE STORAGE - DIRECT UPLOAD FIX
 // ========================================
 
-// Upload Item Image to Firebase Storage
+// Upload Item Image to Firebase Storage - FIXED FOR MOBILE
 async function uploadItemImage(file) {
   if (!file) {
     return { success: false, error: 'No file provided' };
@@ -428,17 +430,22 @@ async function uploadItemImage(file) {
   }
   
   // Create unique filename
+  const timestamp = Date.now();
   const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-  const filename = `items/${Date.now()}_${cleanName}`;
-  const storageRef = storage.ref(filename);
+  const filename = `items/${timestamp}_${cleanName}`;
   
   try {
-    // Direct put() for mobile compatibility
-    const snapshot = await storageRef.put(file);
-    const url = await snapshot.ref.getDownloadURL();
+    // Get storage reference
+    const storageRef = storage.ref(filename);
     
-    console.log('Upload successful:', url);
-    return { success: true, url: url };
+    // Direct upload using put() - works on mobile
+    const snapshot = await storageRef.put(file);
+    
+    // Get download URL
+    const downloadURL = await snapshot.ref.getDownloadURL();
+    
+    console.log('Upload successful:', downloadURL);
+    return { success: true, url: downloadURL };
   } catch (error) {
     console.error('Upload error:', error);
     return { success: false, error: error.message };
@@ -511,7 +518,7 @@ async function canUserPostTrade(uid) {
   return count < 5;
 }
 
-// Validate Trade Data (MUST have items OR purse in BOTH sides)
+// Validate Trade Data - MUST have items OR purse in BOTH sides
 function validateTradeData(tradeData) {
   const hasOfferingItems = tradeData.offering && tradeData.offering.length > 0;
   const hasOfferingPurse = tradeData.purseOffering && tradeData.purseOffering > 0;
@@ -567,7 +574,7 @@ async function createTrade(tradeData, fakepixelName) {
       purseSeeking: tradeData.purseSeeking || 0,
       timestamp: timestamp,
       createdAt: timestamp,
-      expiresAt: timestamp + 604800000,
+      expiresAt: timestamp + 604800000, // 7 days
       status: 'active'
     });
     
@@ -882,7 +889,7 @@ function searchMinecraftIcons(query) {
 window.FakepixelHub = {
   initFirebase,
   signInWithGoogle,
-  handleRedirectResult,
+  handleAuthCallback,
   signOut,
   onAuthStateChanged,
   getCurrentUser,

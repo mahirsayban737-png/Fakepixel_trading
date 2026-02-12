@@ -98,7 +98,7 @@
             <i data-lucide="calculator" class="w-4 h-4"></i>
             <span class="hidden sm:inline">Calculator</span>
           </a>
-          <!-- Admin Link - Only for admins -->
+          <!-- Admin Link - Only visible for admins -->
           <a v-if="isUserAdmin" href="admin.html" class="nav-link flex items-center gap-2">
             <i data-lucide="shield" class="w-4 h-4"></i>
             <span class="hidden sm:inline">Admin</span>
@@ -196,7 +196,7 @@
             <div class="glass-inner rounded-xl p-4">
               <h3 class="text-sm font-semibold text-emerald-400 mb-3 flex items-center gap-2">
                 <i data-lucide="arrow-up-circle" class="w-4 h-4"></i>
-                You're Giving
+                You're Giving (HAVE)
               </h3>
               
               <div class="mb-3">
@@ -238,7 +238,7 @@
             <div class="glass-inner rounded-xl p-4">
               <h3 class="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-2">
                 <i data-lucide="arrow-down-circle" class="w-4 h-4"></i>
-                You're Wanting
+                You're Wanting (WANT)
               </h3>
               
               <div class="mb-3">
@@ -375,7 +375,7 @@
             <div class="grid grid-cols-[1fr,auto,1fr] gap-2 mb-4">
               <div>
                 <div class="text-xs text-emerald-400 font-semibold mb-2 flex items-center gap-1">
-                  <i data-lucide="arrow-up" class="w-3 h-3"></i> Giving
+                  <i data-lucide="arrow-up" class="w-3 h-3"></i> HAVE
                 </div>
                 <div class="multi-item-container" v-if="trade.offering?.length">
                   <div v-for="(item, idx) in trade.offering" :key="idx" class="multi-item-card">
@@ -397,7 +397,7 @@
               
               <div>
                 <div class="text-xs text-cyan-400 font-semibold mb-2 flex items-center gap-1">
-                  <i data-lucide="arrow-down" class="w-3 h-3"></i> Wanting
+                  <i data-lucide="arrow-down" class="w-3 h-3"></i> WANT
                 </div>
                 <div class="multi-item-container" v-if="trade.seeking?.length">
                   <div v-for="(item, idx) in trade.seeking" :key="idx" class="multi-item-card">
@@ -452,7 +452,7 @@
             Fakepixel Username
           </label>
           <input v-model="profileUsername" type="text" class="input-field" placeholder="Your in-game username" maxlength="16">
-          <p class="text-xs text-slate-500 mt-2">This is the name other players will see.</p>
+          <p class="text-xs text-slate-500 mt-2">This is the name other players will see on your trades.</p>
         </div>
         
         <div v-if="profileError" class="text-red-400 text-sm mb-4 flex items-center gap-2">
@@ -471,7 +471,7 @@
             <span v-if="savingProfile" class="flex items-center justify-center gap-2">
               <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             </span>
-            <span v-else>Save</span>
+            <span v-else>Save Changes</span>
           </button>
         </div>
       </div>
@@ -493,7 +493,7 @@
             <div class="text-sm text-slate-400">Active Trader</div>
           </div>
         </div>
-        <p class="text-slate-400 mb-4">Message them in-game on Fakepixel server:</p>
+        <p class="text-slate-400 mb-4">To complete this trade, message them in-game on Fakepixel:</p>
         <div class="bg-dark-700 rounded-lg p-4 mb-4 font-mono text-sm">
           <code class="text-cyan-400">/msg {{ selectedTrade?.username }} I'm interested in your trade!</code>
         </div>
@@ -512,7 +512,7 @@
         const user = ref(null);
         const userProfile = ref(null);
         const authLoading = ref(true);
-        const authMessage = ref('Checking authentication...');
+        const authMessage = ref('Initializing...');
         const items = ref([]);
         const trades = ref([]);
         const loading = ref(true);
@@ -710,7 +710,7 @@
           const result = await window.FakepixelHub.setFakepixelUsername(user.value.uid, profileUsername.value);
           
           if (result.success) {
-            profileSuccess.value = 'Username saved!';
+            profileSuccess.value = 'Username updated!';
             userProfile.value = { ...userProfile.value, fakepixelName: profileUsername.value.trim() };
             setTimeout(() => { showProfileModal.value = false; profileSuccess.value = ''; }, 1500);
           } else {
@@ -732,12 +732,16 @@
         
         onMounted(async () => {
           if (window.FakepixelHub.initFirebase()) {
-            authMessage.value = 'Checking login status...';
+            authMessage.value = 'Checking login...';
             
-            // CRITICAL: Handle redirect result FIRST
-            const redirectResult = await window.FakepixelHub.handleRedirectResult();
+            // CRITICAL: Handle auth callback FIRST (for redirect flow)
+            const callbackResult = await window.FakepixelHub.handleAuthCallback();
             
-            // Auth listener
+            if (callbackResult) {
+              authMessage.value = 'Loading profile...';
+            }
+            
+            // Auth state listener (secondary to callback)
             unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
               user.value = userData;
               authLoading.value = false;
@@ -745,7 +749,7 @@
               if (userData) {
                 await updateUserTradeCount();
                 
-                // Subscribe to profile
+                // Subscribe to profile changes
                 unsubscribeProfile = window.FakepixelHub.subscribeToUserProfile(userData.uid, (profile) => {
                   userProfile.value = profile;
                   

@@ -136,7 +136,7 @@
             <button @click="runCleanup" class="btn-secondary flex items-center gap-2" :disabled="cleaningUp">
               <i data-lucide="trash" class="w-4 h-4" v-if="!cleaningUp"></i>
               <div v-else class="w-4 h-4 border-2 border-slate-400/30 border-t-slate-400 rounded-full animate-spin"></div>
-              <span class="hidden sm:inline">{{ cleaningUp ? 'Cleaning...' : 'Cleanup Old' }}</span>
+              <span class="hidden sm:inline">{{ cleaningUp ? 'Cleaning...' : 'Cleanup Old Trades' }}</span>
             </button>
             <button @click="openAddModal" class="btn-primary flex items-center gap-2">
               <i data-lucide="plus" class="w-5 h-5"></i>
@@ -225,7 +225,7 @@
           </div>
           
           <div class="space-y-2">
-            <!-- Super Admin -->
+            <!-- Super Admin (hardcoded) -->
             <div class="flex items-center justify-between p-3 bg-dark-700/50 rounded-lg border border-amber-500/30">
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
@@ -236,7 +236,7 @@
                   <div class="text-xs text-slate-500">Super Admin (Owner)</div>
                 </div>
               </div>
-              <span class="text-xs text-slate-500">Cannot be removed</span>
+              <span class="text-xs text-slate-500">Cannot remove</span>
             </div>
             
             <!-- Dynamic Admins -->
@@ -373,7 +373,7 @@
       </div>
     </section>
     
-    <!-- Add/Edit Modal -->
+    <!-- Add/Edit Item Modal -->
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal-content glass-modal max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6 sticky top-0 bg-dark-800/95 backdrop-blur py-2 -mt-2 z-10">
@@ -384,13 +384,13 @@
         </div>
         
         <div class="space-y-4">
-          <!-- Minecraft Icon Search -->
+          <!-- Minecraft Icon Picker -->
           <div>
             <label class="block text-sm text-slate-400 mb-2">
               <i data-lucide="search" class="w-4 h-4 inline mr-1"></i>
               Search Minecraft Icons
             </label>
-            <input v-model="mcIconSearch" type="text" class="input-field" placeholder="Type to search (e.g., diamond, sword, netherite)...">
+            <input v-model="mcIconSearch" type="text" class="input-field" placeholder="Type to search (diamond, sword, netherite...)">
             
             <div v-if="filteredMcIcons.length" class="mc-icon-grid mt-3">
               <div v-for="icon in filteredMcIcons.slice(0, 20)" :key="icon.name" @click="selectMcIcon(icon)" :class="{ selected: selectedMcIcon?.name === icon.name }" class="mc-icon-item">
@@ -432,20 +432,27 @@
             </div>
           </div>
           
-          <!-- Image Section -->
+          <!-- Image Upload Section - FIXED -->
           <div>
             <label class="block text-sm text-slate-400 mb-2">Item Image</label>
             
             <div class="grid sm:grid-cols-2 gap-4">
+              <!-- URL Input -->
               <div>
-                <input v-model="formData.imageUrl" type="url" class="input-field mb-2" placeholder="Image URL (PNG)">
-                <div class="text-xs text-slate-500">Paste a direct image URL</div>
+                <input v-model="formData.imageUrl" type="url" class="input-field mb-2" placeholder="Image URL (optional)">
+                <div class="text-xs text-slate-500">Paste direct image URL</div>
               </div>
               
-              <!-- Fixed Mobile Upload -->
+              <!-- File Upload Button - FIXED FOR S24 FE -->
               <div class="relative">
-                <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="handleFileSelect">
-                <div class="upload-area pointer-events-none" :class="{ 'border-violet-500': uploading }">
+                <input 
+                  ref="fileInput" 
+                  type="file" 
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  @change="handleFileUpload"
+                >
+                <div class="upload-area" :class="{ 'border-violet-500 bg-violet-500/10': uploading }">
                   <div v-if="uploading" class="flex items-center justify-center gap-2">
                     <div class="spinner w-5 h-5"></div>
                     <span class="text-sm">Uploading...</span>
@@ -464,11 +471,12 @@
               {{ uploadError }}
             </div>
             
+            <!-- Image Preview -->
             <div v-if="formData.imageUrl" class="mt-4 flex items-center gap-4 p-3 bg-dark-700 rounded-lg">
               <img :src="formData.imageUrl" class="w-16 h-16 rounded-lg object-cover border border-dark-600" style="image-rendering: pixelated;" @error="handlePreviewError">
               <div class="flex-1 min-w-0">
                 <div class="text-sm font-medium truncate">Image Preview</div>
-                <div class="text-xs text-slate-500 truncate">{{ formData.imageUrl }}</div>
+                <div class="text-xs text-slate-500 truncate">{{ formData.imageUrl.substring(0, 50) }}...</div>
               </div>
               <button @click="formData.imageUrl = ''" class="text-red-400 hover:text-red-300 p-2 hover:bg-dark-600 rounded-lg">
                 <i data-lucide="x" class="w-5 h-5"></i>
@@ -514,7 +522,7 @@
       </div>
     </div>
     
-    <!-- Toast -->
+    <!-- Toast Notification -->
     <div v-if="cleanupResult !== null" class="fixed bottom-4 right-4 glass-card px-4 py-3 flex items-center gap-3 animate-slideInUp z-50">
       <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
       <span>Removed {{ cleanupResult }} expired trades</span>
@@ -615,7 +623,8 @@
           refreshIcons();
         };
         
-        const handleFileSelect = async (event) => {
+        // FIXED File Upload Handler
+        const handleFileUpload = async (event) => {
           const file = event.target.files[0];
           if (!file) return;
           
@@ -631,7 +640,12 @@
           }
           
           uploading.value = false;
-          if (fileInput.value) fileInput.value.value = '';
+          
+          // Reset file input
+          if (fileInput.value) {
+            fileInput.value.value = '';
+          }
+          
           refreshIcons();
         };
         
@@ -737,7 +751,7 @@
           const result = await window.FakepixelHub.addAdmin(newAdminEmail.value, user.value?.email);
           
           if (result.success) {
-            adminSuccess.value = `${newAdminEmail.value} has been added as an admin.`;
+            adminSuccess.value = `${newAdminEmail.value} has been added as admin.`;
             newAdminEmail.value = '';
             setTimeout(() => adminSuccess.value = '', 3000);
           } else {
@@ -769,10 +783,10 @@
         
         onMounted(async () => {
           if (window.FakepixelHub.initFirebase()) {
-            // Handle redirect
-            await window.FakepixelHub.handleRedirectResult();
+            // CRITICAL: Handle auth callback FIRST
+            await window.FakepixelHub.handleAuthCallback();
             
-            // Auth listener
+            // Auth state listener
             unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
               user.value = userData;
               
@@ -828,7 +842,7 @@
           fileInput, uploading, uploadError, cleaningUp, cleanupResult, highDemandCount,
           formatNumber, formatTime, getDaysUntilExpiry, isExpiringSoon, getDemandClass,
           getTrendClass, getTrendIcon, getTrendText,
-          handleGoogleSignIn, handleSignOut, selectMcIcon, handleFileSelect,
+          handleGoogleSignIn, handleSignOut, selectMcIcon, handleFileUpload,
           handleImageError, handleAvatarError, handlePreviewError,
           openAddModal, openEditModal, closeModal, saveItem, confirmDelete, deleteItem, deleteTrade,
           handleAddAdmin, handleRemoveAdmin, runCleanup
