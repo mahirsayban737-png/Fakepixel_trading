@@ -1,14 +1,52 @@
-<!DOCTYPE html>
-<html>
-
+    <!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fakepixel Trading Hub</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --text: #f8fafc; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; padding: 20px; }
+        
+        /* Navbar */
+        nav { display: flex; justify-content: space-between; padding: 15px; background: var(--card); border-radius: 10px; margin-bottom: 20px; }
+        .logo { font-weight: bold; color: var(--accent); }
+
+        /* Trade Grid */
+        .trade-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .trade-card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #334155; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; }
+        .have { color: #4ade80; font-weight: bold; } /* Green for Have */
+        .want { color: #f87171; font-weight: bold; } /* Red for Want */
+        
+        .user-info { font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #334155; pt: 10px; margin-top: 10px; }
+        button { background: var(--accent); color: white; border: none; padding: 8px 15px; border-radius: 6px; width: 100%; cursor: pointer; }
+    </style>
 </head>
-
 <body>
-  
-</body>
 
+<nav>
+    <div class="logo">FakepixelTrade</div>
+    <div>Calculator | Trades | Login</div>
+</nav>
+
+<h1>Recent Trades</h1>
+
+<div class="trade-container">
+    <div class="trade-card">
+        <div class="item-row"><span class="have">HAVE:</span> <span>Hyperion (Maxed)</span></div>
+        <div class="item-row"><span class="want">WANT:</span> <span>500M Coins</span></div>
+        <div class="user-info">Posted by: SkyPlayer123 • 2 mins ago</div>
+        <button onclick="alert('In a real site, this would open a chat!')">Make Offer</button>
+    </div>
+
+    <div class="trade-card">
+        <div class="item-row"><span class="have">HAVE:</span> <span>Terminator</span></div>
+        <div class="item-row"><span class="want">WANT:</span> <span>Valkyrie + 100M</span></div>
+        <div class="user-info">Posted by: FakePixelGod • 5 mins ago</div>
+        <button>Make Offer</button>
+    </div>
+</div>
+
+</body>
 </html>
