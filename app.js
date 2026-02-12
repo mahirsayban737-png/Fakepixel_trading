@@ -1,6 +1,6 @@
 /* ========================================
-   FAKEPIXEL TRADING HUB - CORE APPLICATION v4.0
-   Firebase Auth (Redirect), Storage, Real-time Database
+   FAKEPIXEL TRADING HUB - CORE APPLICATION v4.2
+   Firebase Auth (Redirect Fixed), Storage, Real-time Database
    Profile System, Multi-Admin, Advanced Trading
    ======================================== */
 
@@ -23,6 +23,8 @@ const SUPER_ADMIN_EMAIL = "mahirsayban737@gmail.com";
 
 // Initialize Firebase
 let app, database, auth, storage;
+let authInitialized = false;
+let redirectResultHandled = false;
 
 function initFirebase() {
   if (typeof firebase !== 'undefined') {
@@ -34,6 +36,15 @@ function initFirebase() {
     database = firebase.database();
     auth = firebase.auth();
     storage = firebase.storage();
+    
+    // Set persistence to LOCAL for mobile compatibility
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(() => {
+        console.log('Auth persistence set to LOCAL');
+      })
+      .catch((error) => {
+        console.error('Persistence error:', error);
+      });
     
     // Run auto cleanup on init
     cleanupExpiredTrades();
@@ -58,6 +69,137 @@ function getUsersRef() {
 
 function getAdminsRef() {
   return database.ref('admins');
+}
+
+// ========================================
+// AUTHENTICATION (FIXED REDIRECT FLOW)
+// ========================================
+
+// Google Sign-In with Redirect (Mobile Fixed)
+async function signInWithGoogle() {
+  try {
+    // Set persistence first
+    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({
+      'client_id': GOOGLE_CLIENT_ID,
+      'prompt': 'select_account'
+    });
+    provider.addScope('profile');
+    provider.addScope('email');
+    
+    // Use redirect for mobile compatibility
+    return auth.signInWithRedirect(provider);
+  } catch (error) {
+    console.error('Google Sign-In Error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle Redirect Result - MUST be called BEFORE checking auth state
+async function handleRedirectResult() {
+  if (redirectResultHandled) {
+    return { success: true, user: auth.currentUser };
+  }
+  
+  try {
+    const result = await auth.getRedirectResult();
+    redirectResultHandled = true;
+    
+    if (result && result.user) {
+      console.log('Redirect login successful:', result.user.email);
+      
+      // Check if user has a profile, if not create one
+      const existingProfile = await getUserProfile(result.user.uid);
+      if (!existingProfile) {
+        await saveUserProfile(result.user.uid, {
+          email: result.user.email,
+          googleName: result.user.displayName,
+          photoURL: result.user.photoURL,
+          createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+      }
+      
+      return {
+        success: true,
+        user: {
+          uid: result.user.uid,
+          displayName: result.user.displayName,
+          email: result.user.email,
+          photoURL: result.user.photoURL
+        },
+        isNewUser: !existingProfile
+      };
+    }
+    
+    return { success: true, user: null };
+  } catch (error) {
+    console.error('Redirect result error:', error);
+    redirectResultHandled = true;
+    return { success: false, error: error.message };
+  }
+}
+
+// Auth State Listener - WAITS for redirect result first
+function onAuthStateChanged(callback) {
+  // Create a wrapper that waits for redirect result
+  const wrappedCallback = async (user) => {
+    // If we haven't handled redirect yet, wait for it
+    if (!redirectResultHandled) {
+      const redirectResult = await handleRedirectResult();
+      // If redirect gave us a user, use that instead
+      if (redirectResult.user) {
+        user = auth.currentUser;
+      }
+    }
+    
+    if (user) {
+      // Get Fakepixel username
+      const fakepixelName = await getFakepixelUsername(user.uid);
+      const profile = await getUserProfile(user.uid);
+      
+      callback({
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        fakepixelName: fakepixelName,
+        needsProfile: !fakepixelName,
+        profile: profile
+      });
+    } else {
+      callback(null);
+    }
+  };
+  
+  return auth.onAuthStateChanged(wrappedCallback);
+}
+
+// Sign Out
+async function signOut() {
+  try {
+    await auth.signOut();
+    redirectResultHandled = false; // Reset for next login
+    return { success: true };
+  } catch (error) {
+    console.error('Sign Out Error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Get Current User
+function getCurrentUser() {
+  const user = auth.currentUser;
+  if (user) {
+    return {
+      uid: user.uid,
+      displayName: user.displayName,
+      email: user.email,
+      photoURL: user.photoURL
+    };
+  }
+  return null;
 }
 
 // ========================================
@@ -130,7 +272,7 @@ async function getFakepixelUsername(uid) {
   }
 }
 
-// Listen to User Profile Changes
+// Subscribe to User Profile Changes
 function subscribeToUserProfile(uid, callback) {
   if (!database || !uid) return null;
   
@@ -151,20 +293,28 @@ function isSuperAdmin(email) {
   return email === SUPER_ADMIN_EMAIL;
 }
 
-// Check if user is an Admin (Database check) - SIMPLIFIED
+// Check if user is an Admin (Database check)
 async function isAdmin(email) {
   if (!email) return false;
   
-  // Super Admin always has access (hardcoded owner)
-  if (email === SUPER_ADMIN_EMAIL) return true;
+  // Super Admin always has access
+  if (isSuperAdmin(email)) return true;
   
-  // Check database for dynamic admins
-  const snapshot = await database.ref('admins').once('value');
-  const admins = snapshot.val() || {};
-  return Object.values(admins).some(a => a.email === email);
+  try {
+    const snapshot = await getAdminsRef().once('value');
+    const admins = snapshot.val();
+    
+    if (!admins) return false;
+    
+    // Check if email is in the admins list
+    return Object.values(admins).some(admin => admin.email === email);
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
 }
 
-// Subscribe to Admin Status Changes
+// Subscribe to Admin Status Changes (Real-time)
 function subscribeToAdminStatus(email, callback) {
   if (!database || !email) {
     callback(isSuperAdmin(email));
@@ -198,6 +348,11 @@ async function addAdmin(email, addedBy) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return { success: false, error: 'Invalid email format' };
+    }
+    
+    // Can't add super admin again
+    if (isSuperAdmin(email)) {
+      return { success: false, error: 'This user is already the Super Admin' };
     }
     
     // Check if already admin
@@ -252,113 +407,11 @@ function subscribeToAdmins(callback) {
 }
 
 // ========================================
-// AUTHENTICATION (Redirect Flow for Mobile)
-// ========================================
-
-// Google Sign-In with Redirect (Mobile Compatible - FIXED for S24 FE)
-async function signInWithGoogle() {
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({
-      'client_id': GOOGLE_CLIENT_ID,
-      'prompt': 'select_account'  // Forces account selection on mobile
-    });
-    provider.addScope('profile');
-    provider.addScope('email');
-    
-    // Use redirect for mobile compatibility (S24 FE tested)
-    return auth.signInWithRedirect(provider);
-  } catch (error) {
-    console.error('Google Sign-In Error:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-// Handle Redirect Result (call on page load) - IMPROVED
-async function handleRedirectResult() {
-  try {
-    const result = await auth.getRedirectResult();
-    if (result.user) {
-      // Check if user has a profile, if not create one
-      const existingProfile = await getUserProfile(result.user.uid);
-      if (!existingProfile) {
-        await saveUserProfile(result.user.uid, {
-          email: result.user.email,
-          googleName: result.user.displayName,
-          photoURL: result.user.photoURL,
-          createdAt: firebase.database.ServerValue.TIMESTAMP
-        });
-      }
-      
-      return {
-        success: true,
-        user: {
-          uid: result.user.uid,
-          displayName: result.user.displayName,
-          email: result.user.email,
-          photoURL: result.user.photoURL
-        }
-      };
-    }
-    return { success: true, user: null };
-  } catch (error) {
-    console.error('Login redirect error:', error.message);
-    return { success: false, error: error.message };
-  }
-}
-
-// Sign Out
-async function signOut() {
-  try {
-    await auth.signOut();
-    return { success: true };
-  } catch (error) {
-    console.error('Sign Out Error:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-// Auth State Listener
-function onAuthStateChanged(callback) {
-  return auth.onAuthStateChanged(async (user) => {
-    if (user) {
-      // Get Fakepixel username
-      const fakepixelName = await getFakepixelUsername(user.uid);
-      
-      callback({
-        uid: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
-        fakepixelName: fakepixelName
-      });
-    } else {
-      callback(null);
-    }
-  });
-}
-
-// Get Current User
-function getCurrentUser() {
-  const user = auth.currentUser;
-  if (user) {
-    return {
-      uid: user.uid,
-      displayName: user.displayName,
-      email: user.email,
-      photoURL: user.photoURL
-    };
-  }
-  return null;
-}
-
-// ========================================
 // FIREBASE STORAGE (FIXED MOBILE UPLOAD)
 // ========================================
 
-// Upload Item Image to Firebase Storage - NATIVE MOBILE COMPATIBLE
+// Upload Item Image to Firebase Storage
 async function uploadItemImage(file) {
-  // Validate input
   if (!file) {
     return { success: false, error: 'No file provided' };
   }
@@ -366,7 +419,7 @@ async function uploadItemImage(file) {
   // Validate file type
   const validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
   if (!validTypes.includes(file.type)) {
-    return { success: false, error: 'Invalid file type. Please upload PNG, JPEG, GIF, or WebP.' };
+    return { success: false, error: 'Invalid file type. Use PNG, JPEG, GIF, or WebP.' };
   }
   
   // Validate file size (max 5MB)
@@ -375,13 +428,16 @@ async function uploadItemImage(file) {
   }
   
   // Create unique filename
-  const filename = `items/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+  const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+  const filename = `items/${Date.now()}_${cleanName}`;
   const storageRef = storage.ref(filename);
   
   try {
-    // Native mobile upload using put() - works on S24 FE gallery
+    // Direct put() for mobile compatibility
     const snapshot = await storageRef.put(file);
     const url = await snapshot.ref.getDownloadURL();
+    
+    console.log('Upload successful:', url);
     return { success: true, url: url };
   } catch (error) {
     console.error('Upload error:', error);
@@ -435,7 +491,7 @@ async function deleteItem(itemId) {
 }
 
 // ========================================
-// TRADES CRUD OPERATIONS (v4.0 - Advanced)
+// TRADES CRUD OPERATIONS
 // ========================================
 
 // Count User Trades
@@ -455,7 +511,7 @@ async function canUserPostTrade(uid) {
   return count < 5;
 }
 
-// Validate Trade Data
+// Validate Trade Data (MUST have items OR purse in BOTH sides)
 function validateTradeData(tradeData) {
   const hasOfferingItems = tradeData.offering && tradeData.offering.length > 0;
   const hasOfferingPurse = tradeData.purseOffering && tradeData.purseOffering > 0;
@@ -476,7 +532,7 @@ function validateTradeData(tradeData) {
   return { valid: true };
 }
 
-// Create Trade Post (v4.0 - Multi-Item + Purse + Validation)
+// Create Trade Post
 async function createTrade(tradeData, fakepixelName) {
   try {
     const user = getCurrentUser();
@@ -484,10 +540,10 @@ async function createTrade(tradeData, fakepixelName) {
       return { success: false, error: 'You must be signed in to post a trade.' };
     }
     
-    // Check trade limit (max 5 per user)
+    // Check trade limit
     const canPost = await canUserPostTrade(user.uid);
     if (!canPost) {
-      return { success: false, error: 'Trade limit reached! You can only have 5 active trades. Delete an existing trade first.' };
+      return { success: false, error: 'Trade limit reached! You can only have 5 active trades.' };
     }
     
     // Validate trade data
@@ -505,16 +561,13 @@ async function createTrade(tradeData, fakepixelName) {
       username: fakepixelName || user.displayName || 'Anonymous',
       userPhoto: user.photoURL || '',
       userEmail: user.email || '',
-      // Multi-item arrays
       offering: tradeData.offering || [],
       seeking: tradeData.seeking || [],
-      // Purse (renamed from coins)
       purseOffering: tradeData.purseOffering || 0,
       purseSeeking: tradeData.purseSeeking || 0,
-      // Timestamps
       timestamp: timestamp,
       createdAt: timestamp,
-      expiresAt: timestamp + 604800000, // 7 days in milliseconds
+      expiresAt: timestamp + 604800000,
       status: 'active'
     });
     
@@ -525,7 +578,7 @@ async function createTrade(tradeData, fakepixelName) {
   }
 }
 
-// Delete Trade (only owner can delete, or admin with bypass)
+// Delete Trade
 async function deleteTrade(tradeId, checkOwnership = true) {
   try {
     if (checkOwnership) {
@@ -534,11 +587,9 @@ async function deleteTrade(tradeId, checkOwnership = true) {
         return { success: false, error: 'You must be signed in.' };
       }
       
-      // Check ownership
       const tradeSnap = await getTradesRef().child(tradeId).once('value');
       const trade = tradeSnap.val();
       if (trade && trade.uid !== user.uid) {
-        // Check if user is admin
         const adminStatus = await isAdmin(user.email);
         if (!adminStatus) {
           return { success: false, error: 'You can only delete your own trades.' };
@@ -558,13 +609,11 @@ async function deleteTrade(tradeId, checkOwnership = true) {
 // 7-DAY AUTO-EXPIRY CLEANUP
 // ========================================
 
-// Cleanup Expired Trades (trades older than 7 days = 604,800,000 ms)
 async function cleanupExpiredTrades() {
   try {
     const SEVEN_DAYS_MS = 604800000;
     const cutoffTime = Date.now() - SEVEN_DAYS_MS;
     
-    // Query trades older than 7 days
     const snapshot = await getTradesRef().orderByChild('timestamp').endAt(cutoffTime).once('value');
     
     const deletePromises = [];
@@ -572,7 +621,6 @@ async function cleanupExpiredTrades() {
     
     snapshot.forEach((childSnapshot) => {
       const trade = childSnapshot.val();
-      // Double-check the timestamp
       if (trade.timestamp && trade.timestamp < cutoffTime) {
         deletePromises.push(childSnapshot.ref.remove());
         deletedCount++;
@@ -592,7 +640,6 @@ async function cleanupExpiredTrades() {
   }
 }
 
-// Manual cleanup trigger (for admin use)
 async function manualCleanup() {
   return await cleanupExpiredTrades();
 }
@@ -601,7 +648,6 @@ async function manualCleanup() {
 // REAL-TIME LISTENERS
 // ========================================
 
-// Listen to Items
 function subscribeToItems(callback) {
   if (!database) return null;
   
@@ -623,7 +669,6 @@ function subscribeToItems(callback) {
   return () => itemsRef.off('value');
 }
 
-// Listen to Trades
 function subscribeToTrades(callback) {
   if (!database) return null;
   
@@ -636,7 +681,6 @@ function subscribeToTrades(callback) {
         ...childSnapshot.val()
       });
     });
-    // Reverse to show newest first
     callback(trades.reverse());
   }, (error) => {
     console.error('Trades listener error:', error);
@@ -646,7 +690,6 @@ function subscribeToTrades(callback) {
   return () => tradesRef.off('value');
 }
 
-// Listen to User's Trades Only
 function subscribeToUserTrades(uid, callback) {
   if (!database || !uid) return null;
   
@@ -672,13 +715,11 @@ function subscribeToUserTrades(uid, callback) {
 // UTILITY FUNCTIONS
 // ========================================
 
-// Format number with commas
 function formatNumber(num) {
   if (num === undefined || num === null) return '0';
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-// Format relative time
 function formatRelativeTime(timestamp) {
   if (!timestamp) return 'Unknown';
   
@@ -698,7 +739,6 @@ function formatRelativeTime(timestamp) {
   return new Date(timestamp).toLocaleDateString();
 }
 
-// Calculate days until expiry (7 days from creation)
 function getDaysUntilExpiry(timestamp) {
   if (!timestamp) return 0;
   const SEVEN_DAYS_MS = 604800000;
@@ -707,17 +747,14 @@ function getDaysUntilExpiry(timestamp) {
   return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
 }
 
-// Check if trade is expiring soon (within 24 hours)
 function isExpiringSoon(timestamp) {
   return getDaysUntilExpiry(timestamp) <= 1;
 }
 
-// Calculate trade fairness (v4.0 - Multi-Item + Purse)
 function calculateTradeFairness(offeringItems, seekingItems, purseOffering, purseSeeking, allItems) {
   let offeringTotal = purseOffering || 0;
   let seekingTotal = purseSeeking || 0;
   
-  // Calculate offering value
   if (offeringItems && Array.isArray(offeringItems)) {
     offeringItems.forEach(item => {
       const itemData = allItems.find(i => i.id === item.id);
@@ -727,7 +764,6 @@ function calculateTradeFairness(offeringItems, seekingItems, purseOffering, purs
     });
   }
   
-  // Calculate seeking value
   if (seekingItems && Array.isArray(seekingItems)) {
     seekingItems.forEach(item => {
       const itemData = allItems.find(i => i.id === item.id);
@@ -763,7 +799,6 @@ function calculateTradeFairness(offeringItems, seekingItems, purseOffering, purs
   };
 }
 
-// Get demand class for styling
 function getDemandClass(demand) {
   switch (demand?.toLowerCase()) {
     case 'high': return 'demand-high';
@@ -773,7 +808,6 @@ function getDemandClass(demand) {
   }
 }
 
-// Get trend icon and class
 function getTrendInfo(trend) {
   switch (trend?.toLowerCase()) {
     case 'up':
@@ -786,63 +820,20 @@ function getTrendInfo(trend) {
 }
 
 // ========================================
-// ADMIN AUTHENTICATION
-// ========================================
-
-const MASTER_KEY = 'FakepixelAdmin2024';
-
-function validateMasterKey(key) {
-  return key === MASTER_KEY;
-}
-
-// Session Storage for Admin Auth
-function setAdminAuth(isAuth) {
-  sessionStorage.setItem('adminAuth', isAuth ? 'true' : 'false');
-}
-
-function checkAdminAuth() {
-  return sessionStorage.getItem('adminAuth') === 'true';
-}
-
-function clearAdminAuth() {
-  sessionStorage.removeItem('adminAuth');
-}
-
-// ========================================
-// MINECRAFT ICONS DATA (Common Items)
+// MINECRAFT ICONS DATA
 // ========================================
 
 const MINECRAFT_ICONS = [
-  // Swords
   { name: 'diamond_sword', displayName: 'Diamond Sword', url: 'https://minecraft-api.vercel.app/images/items/diamond_sword.png' },
   { name: 'netherite_sword', displayName: 'Netherite Sword', url: 'https://minecraft-api.vercel.app/images/items/netherite_sword.png' },
   { name: 'iron_sword', displayName: 'Iron Sword', url: 'https://minecraft-api.vercel.app/images/items/iron_sword.png' },
-  { name: 'golden_sword', displayName: 'Golden Sword', url: 'https://minecraft-api.vercel.app/images/items/golden_sword.png' },
-  
-  // Materials
   { name: 'diamond', displayName: 'Diamond', url: 'https://minecraft-api.vercel.app/images/items/diamond.png' },
   { name: 'emerald', displayName: 'Emerald', url: 'https://minecraft-api.vercel.app/images/items/emerald.png' },
   { name: 'netherite_ingot', displayName: 'Netherite Ingot', url: 'https://minecraft-api.vercel.app/images/items/netherite_ingot.png' },
   { name: 'gold_ingot', displayName: 'Gold Ingot', url: 'https://minecraft-api.vercel.app/images/items/gold_ingot.png' },
   { name: 'iron_ingot', displayName: 'Iron Ingot', url: 'https://minecraft-api.vercel.app/images/items/iron_ingot.png' },
-  { name: 'ancient_debris', displayName: 'Ancient Debris', url: 'https://minecraft-api.vercel.app/images/blocks/ancient_debris_side.png' },
-  { name: 'lapis_lazuli', displayName: 'Lapis Lazuli', url: 'https://minecraft-api.vercel.app/images/items/lapis_lazuli.png' },
-  { name: 'redstone', displayName: 'Redstone', url: 'https://minecraft-api.vercel.app/images/items/redstone.png' },
-  { name: 'coal', displayName: 'Coal', url: 'https://minecraft-api.vercel.app/images/items/coal.png' },
-  { name: 'copper_ingot', displayName: 'Copper Ingot', url: 'https://minecraft-api.vercel.app/images/items/copper_ingot.png' },
-  { name: 'amethyst_shard', displayName: 'Amethyst Shard', url: 'https://minecraft-api.vercel.app/images/items/amethyst_shard.png' },
-  
-  // Tools
   { name: 'diamond_pickaxe', displayName: 'Diamond Pickaxe', url: 'https://minecraft-api.vercel.app/images/items/diamond_pickaxe.png' },
   { name: 'netherite_pickaxe', displayName: 'Netherite Pickaxe', url: 'https://minecraft-api.vercel.app/images/items/netherite_pickaxe.png' },
-  { name: 'diamond_axe', displayName: 'Diamond Axe', url: 'https://minecraft-api.vercel.app/images/items/diamond_axe.png' },
-  { name: 'diamond_shovel', displayName: 'Diamond Shovel', url: 'https://minecraft-api.vercel.app/images/items/diamond_shovel.png' },
-  { name: 'diamond_hoe', displayName: 'Diamond Hoe', url: 'https://minecraft-api.vercel.app/images/items/diamond_hoe.png' },
-  { name: 'fishing_rod', displayName: 'Fishing Rod', url: 'https://minecraft-api.vercel.app/images/items/fishing_rod.png' },
-  { name: 'flint_and_steel', displayName: 'Flint and Steel', url: 'https://minecraft-api.vercel.app/images/items/flint_and_steel.png' },
-  { name: 'shears', displayName: 'Shears', url: 'https://minecraft-api.vercel.app/images/items/shears.png' },
-  
-  // Armor
   { name: 'diamond_helmet', displayName: 'Diamond Helmet', url: 'https://minecraft-api.vercel.app/images/items/diamond_helmet.png' },
   { name: 'diamond_chestplate', displayName: 'Diamond Chestplate', url: 'https://minecraft-api.vercel.app/images/items/diamond_chestplate.png' },
   { name: 'diamond_leggings', displayName: 'Diamond Leggings', url: 'https://minecraft-api.vercel.app/images/items/diamond_leggings.png' },
@@ -851,9 +842,6 @@ const MINECRAFT_ICONS = [
   { name: 'netherite_chestplate', displayName: 'Netherite Chestplate', url: 'https://minecraft-api.vercel.app/images/items/netherite_chestplate.png' },
   { name: 'netherite_leggings', displayName: 'Netherite Leggings', url: 'https://minecraft-api.vercel.app/images/items/netherite_leggings.png' },
   { name: 'netherite_boots', displayName: 'Netherite Boots', url: 'https://minecraft-api.vercel.app/images/items/netherite_boots.png' },
-  { name: 'turtle_helmet', displayName: 'Turtle Helmet', url: 'https://minecraft-api.vercel.app/images/items/turtle_helmet.png' },
-  
-  // Special Items
   { name: 'enchanted_book', displayName: 'Enchanted Book', url: 'https://minecraft-api.vercel.app/images/items/enchanted_book.png' },
   { name: 'totem_of_undying', displayName: 'Totem of Undying', url: 'https://minecraft-api.vercel.app/images/items/totem_of_undying.png' },
   { name: 'elytra', displayName: 'Elytra', url: 'https://minecraft-api.vercel.app/images/items/elytra.png' },
@@ -861,64 +849,23 @@ const MINECRAFT_ICONS = [
   { name: 'nether_star', displayName: 'Nether Star', url: 'https://minecraft-api.vercel.app/images/items/nether_star.png' },
   { name: 'beacon', displayName: 'Beacon', url: 'https://minecraft-api.vercel.app/images/blocks/beacon.png' },
   { name: 'dragon_egg', displayName: 'Dragon Egg', url: 'https://minecraft-api.vercel.app/images/blocks/dragon_egg.png' },
-  { name: 'end_crystal', displayName: 'End Crystal', url: 'https://minecraft-api.vercel.app/images/items/end_crystal.png' },
-  { name: 'conduit', displayName: 'Conduit', url: 'https://minecraft-api.vercel.app/images/blocks/conduit.png' },
-  
-  // Combat & Ranged
-  { name: 'bow', displayName: 'Bow', url: 'https://minecraft-api.vercel.app/images/items/bow.png' },
-  { name: 'crossbow', displayName: 'Crossbow', url: 'https://minecraft-api.vercel.app/images/items/crossbow.png' },
-  { name: 'shield', displayName: 'Shield', url: 'https://minecraft-api.vercel.app/images/items/shield.png' },
-  { name: 'arrow', displayName: 'Arrow', url: 'https://minecraft-api.vercel.app/images/items/arrow.png' },
-  { name: 'spectral_arrow', displayName: 'Spectral Arrow', url: 'https://minecraft-api.vercel.app/images/items/spectral_arrow.png' },
-  { name: 'tipped_arrow', displayName: 'Tipped Arrow', url: 'https://minecraft-api.vercel.app/images/items/tipped_arrow.png' },
-  
-  // Potions & Food
   { name: 'golden_apple', displayName: 'Golden Apple', url: 'https://minecraft-api.vercel.app/images/items/golden_apple.png' },
   { name: 'enchanted_golden_apple', displayName: 'Enchanted Golden Apple', url: 'https://minecraft-api.vercel.app/images/items/enchanted_golden_apple.png' },
-  { name: 'potion', displayName: 'Potion', url: 'https://minecraft-api.vercel.app/images/items/potion.png' },
-  { name: 'splash_potion', displayName: 'Splash Potion', url: 'https://minecraft-api.vercel.app/images/items/splash_potion.png' },
-  { name: 'golden_carrot', displayName: 'Golden Carrot', url: 'https://minecraft-api.vercel.app/images/items/golden_carrot.png' },
-  { name: 'chorus_fruit', displayName: 'Chorus Fruit', url: 'https://minecraft-api.vercel.app/images/items/chorus_fruit.png' },
-  
-  // Rare Drops
   { name: 'ender_pearl', displayName: 'Ender Pearl', url: 'https://minecraft-api.vercel.app/images/items/ender_pearl.png' },
-  { name: 'ender_eye', displayName: 'Eye of Ender', url: 'https://minecraft-api.vercel.app/images/items/ender_eye.png' },
   { name: 'blaze_rod', displayName: 'Blaze Rod', url: 'https://minecraft-api.vercel.app/images/items/blaze_rod.png' },
   { name: 'ghast_tear', displayName: 'Ghast Tear', url: 'https://minecraft-api.vercel.app/images/items/ghast_tear.png' },
   { name: 'wither_skeleton_skull', displayName: 'Wither Skull', url: 'https://minecraft-api.vercel.app/images/items/wither_skeleton_skull.png' },
   { name: 'shulker_shell', displayName: 'Shulker Shell', url: 'https://minecraft-api.vercel.app/images/items/shulker_shell.png' },
   { name: 'heart_of_the_sea', displayName: 'Heart of the Sea', url: 'https://minecraft-api.vercel.app/images/items/heart_of_the_sea.png' },
-  { name: 'nautilus_shell', displayName: 'Nautilus Shell', url: 'https://minecraft-api.vercel.app/images/items/nautilus_shell.png' },
-  { name: 'phantom_membrane', displayName: 'Phantom Membrane', url: 'https://minecraft-api.vercel.app/images/items/phantom_membrane.png' },
-  { name: 'dragon_breath', displayName: 'Dragon\'s Breath', url: 'https://minecraft-api.vercel.app/images/items/dragon_breath.png' },
-  
-  // Blocks
-  { name: 'obsidian', displayName: 'Obsidian', url: 'https://minecraft-api.vercel.app/images/blocks/obsidian.png' },
-  { name: 'crying_obsidian', displayName: 'Crying Obsidian', url: 'https://minecraft-api.vercel.app/images/blocks/crying_obsidian.png' },
-  { name: 'respawn_anchor', displayName: 'Respawn Anchor', url: 'https://minecraft-api.vercel.app/images/blocks/respawn_anchor_top.png' },
-  { name: 'lodestone', displayName: 'Lodestone', url: 'https://minecraft-api.vercel.app/images/blocks/lodestone_top.png' },
-  { name: 'shulker_box', displayName: 'Shulker Box', url: 'https://minecraft-api.vercel.app/images/blocks/purple_shulker_box.png' },
-  { name: 'ender_chest', displayName: 'Ender Chest', url: 'https://minecraft-api.vercel.app/images/blocks/ender_chest_front.png' },
-  { name: 'enchanting_table', displayName: 'Enchanting Table', url: 'https://minecraft-api.vercel.app/images/blocks/enchanting_table_top.png' },
-  { name: 'anvil', displayName: 'Anvil', url: 'https://minecraft-api.vercel.app/images/blocks/anvil.png' },
-  
-  // Misc
+  { name: 'bow', displayName: 'Bow', url: 'https://minecraft-api.vercel.app/images/items/bow.png' },
+  { name: 'crossbow', displayName: 'Crossbow', url: 'https://minecraft-api.vercel.app/images/items/crossbow.png' },
+  { name: 'shield', displayName: 'Shield', url: 'https://minecraft-api.vercel.app/images/items/shield.png' },
+  { name: 'fishing_rod', displayName: 'Fishing Rod', url: 'https://minecraft-api.vercel.app/images/items/fishing_rod.png' },
   { name: 'name_tag', displayName: 'Name Tag', url: 'https://minecraft-api.vercel.app/images/items/name_tag.png' },
   { name: 'saddle', displayName: 'Saddle', url: 'https://minecraft-api.vercel.app/images/items/saddle.png' },
-  { name: 'music_disc_pigstep', displayName: 'Music Disc (Pigstep)', url: 'https://minecraft-api.vercel.app/images/items/music_disc_pigstep.png' },
-  { name: 'music_disc_otherside', displayName: 'Music Disc (Otherside)', url: 'https://minecraft-api.vercel.app/images/items/music_disc_otherside.png' },
-  { name: 'experience_bottle', displayName: 'Bottle o\' Enchanting', url: 'https://minecraft-api.vercel.app/images/items/experience_bottle.png' },
-  { name: 'lead', displayName: 'Lead', url: 'https://minecraft-api.vercel.app/images/items/lead.png' },
-  { name: 'compass', displayName: 'Compass', url: 'https://minecraft-api.vercel.app/images/items/compass.png' },
-  { name: 'clock', displayName: 'Clock', url: 'https://minecraft-api.vercel.app/images/items/clock.png' },
-  { name: 'spyglass', displayName: 'Spyglass', url: 'https://minecraft-api.vercel.app/images/items/spyglass.png' },
-  { name: 'bundle', displayName: 'Bundle', url: 'https://minecraft-api.vercel.app/images/items/bundle.png' },
-  { name: 'recovery_compass', displayName: 'Recovery Compass', url: 'https://minecraft-api.vercel.app/images/items/recovery_compass.png' },
-  { name: 'echo_shard', displayName: 'Echo Shard', url: 'https://minecraft-api.vercel.app/images/items/echo_shard.png' },
-  { name: 'disc_fragment_5', displayName: 'Disc Fragment', url: 'https://minecraft-api.vercel.app/images/items/disc_fragment_5.png' }
+  { name: 'experience_bottle', displayName: 'Bottle o\' Enchanting', url: 'https://minecraft-api.vercel.app/images/items/experience_bottle.png' }
 ];
 
-// Search Minecraft Icons
 function searchMinecraftIcons(query) {
   if (!query) return MINECRAFT_ICONS.slice(0, 20);
   const lowerQuery = query.toLowerCase();
@@ -933,24 +880,17 @@ function searchMinecraftIcons(query) {
 // ========================================
 
 window.FakepixelHub = {
-  // Firebase Init
   initFirebase,
-  
-  // Auth (Redirect Flow)
   signInWithGoogle,
   handleRedirectResult,
   signOut,
   onAuthStateChanged,
   getCurrentUser,
-  
-  // User Profile
   getUserProfile,
   saveUserProfile,
   setFakepixelUsername,
   getFakepixelUsername,
   subscribeToUserProfile,
-  
-  // Admin System
   SUPER_ADMIN_EMAIL,
   isSuperAdmin,
   isAdmin,
@@ -958,32 +898,20 @@ window.FakepixelHub = {
   addAdmin,
   removeAdmin,
   subscribeToAdmins,
-  
-  // Storage
   uploadItemImage,
-  
-  // Items CRUD
   createItem,
   updateItem,
   deleteItem,
-  
-  // Trades CRUD
   createTrade,
   deleteTrade,
   countUserTrades,
   canUserPostTrade,
   validateTradeData,
-  
-  // Cleanup
   cleanupExpiredTrades,
   manualCleanup,
-  
-  // Subscriptions
   subscribeToItems,
   subscribeToTrades,
   subscribeToUserTrades,
-  
-  // Utilities
   formatNumber,
   formatRelativeTime,
   getDaysUntilExpiry,
@@ -991,14 +919,6 @@ window.FakepixelHub = {
   calculateTradeFairness,
   getDemandClass,
   getTrendInfo,
-  
-  // Admin
-  validateMasterKey,
-  setAdminAuth,
-  checkAdminAuth,
-  clearAdminAuth,
-  
-  // Minecraft Icons
   MINECRAFT_ICONS,
   searchMinecraftIcons
 };

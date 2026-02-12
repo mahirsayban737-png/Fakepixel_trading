@@ -6,27 +6,20 @@
   <meta name="theme-color" content="#020617">
   <title>Admin Dashboard - Fakepixel Hub</title>
   
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
   
-  <!-- Vue.js 3 -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   
-  <!-- Custom Styles -->
   <link rel="stylesheet" href="style.css">
   
   <script>
@@ -34,12 +27,7 @@
       theme: {
         extend: {
           colors: {
-            dark: {
-              900: '#020617',
-              800: '#0f172a',
-              700: '#1e293b',
-              600: '#334155'
-            }
+            dark: { 900: '#020617', 800: '#0f172a', 700: '#1e293b', 600: '#334155' }
           }
         }
       }
@@ -213,7 +201,6 @@
             <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full">Super Admin Only</span>
           </h2>
           
-          <!-- Add Admin -->
           <div class="flex gap-2 mb-4">
             <input v-model="newAdminEmail" type="email" class="input-field flex-1" placeholder="Enter Gmail address to add as admin...">
             <button @click="handleAddAdmin" class="btn-primary" :disabled="addingAdmin || !newAdminEmail">
@@ -237,9 +224,8 @@
             {{ adminSuccess }}
           </div>
           
-          <!-- Admins List -->
           <div class="space-y-2">
-            <!-- Super Admin (hardcoded) -->
+            <!-- Super Admin -->
             <div class="flex items-center justify-between p-3 bg-dark-700/50 rounded-lg border border-amber-500/30">
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
@@ -280,18 +266,15 @@
             </h2>
           </div>
           
-          <!-- Loading -->
           <div v-if="loading" class="flex justify-center py-12">
             <div class="spinner"></div>
           </div>
           
-          <!-- Empty State -->
           <div v-else-if="items.length === 0" class="text-center py-12">
             <i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 text-slate-600"></i>
             <p class="text-slate-400">No items in database</p>
           </div>
           
-          <!-- Table -->
           <div v-else class="overflow-x-auto">
             <table class="w-full">
               <thead class="bg-dark-700/50">
@@ -363,9 +346,7 @@
           <div v-else class="divide-y divide-dark-700 max-h-96 overflow-y-auto">
             <div v-for="trade in trades" :key="trade.id" class="p-4 flex items-center justify-between hover:bg-dark-700/30 transition-colors">
               <div class="flex items-center gap-3 min-w-0 flex-1">
-                <img :src="trade.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(trade.username || 'User')" 
-                     class="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                     @error="handleAvatarError">
+                <img :src="trade.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(trade.username || 'User')" class="w-10 h-10 rounded-full object-cover flex-shrink-0" @error="handleAvatarError">
                 <div class="min-w-0 flex-1">
                   <div class="font-medium truncate text-violet-300">{{ trade.username || 'Anonymous' }}</div>
                   <div class="text-sm text-slate-400 truncate">{{ trade.description || 'No description' }}</div>
@@ -411,12 +392,8 @@
             </label>
             <input v-model="mcIconSearch" type="text" class="input-field" placeholder="Type to search (e.g., diamond, sword, netherite)...">
             
-            <!-- Icon Grid -->
             <div v-if="filteredMcIcons.length" class="mc-icon-grid mt-3">
-              <div v-for="icon in filteredMcIcons.slice(0, 30)" :key="icon.name" 
-                   @click="selectMcIcon(icon)"
-                   :class="{ selected: selectedMcIcon?.name === icon.name }"
-                   class="mc-icon-item">
+              <div v-for="icon in filteredMcIcons.slice(0, 20)" :key="icon.name" @click="selectMcIcon(icon)" :class="{ selected: selectedMcIcon?.name === icon.name }" class="mc-icon-item">
                 <img :src="icon.url" :alt="icon.displayName" @error="handleImageError">
                 <span>{{ icon.displayName }}</span>
               </div>
@@ -460,25 +437,18 @@
             <label class="block text-sm text-slate-400 mb-2">Item Image</label>
             
             <div class="grid sm:grid-cols-2 gap-4">
-              <!-- URL Input -->
               <div>
                 <input v-model="formData.imageUrl" type="url" class="input-field mb-2" placeholder="Image URL (PNG)">
                 <div class="text-xs text-slate-500">Paste a direct image URL</div>
               </div>
               
-              <!-- File Upload - Fixed for Mobile -->
+              <!-- Fixed Mobile Upload -->
               <div class="relative">
-                <input 
-                  ref="fileInput" 
-                  type="file" 
-                  accept="image/png,image/jpeg,image/gif,image/webp" 
-                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  @change="handleFileSelect"
-                >
+                <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="handleFileSelect">
                 <div class="upload-area pointer-events-none" :class="{ 'border-violet-500': uploading }">
                   <div v-if="uploading" class="flex items-center justify-center gap-2">
                     <div class="spinner w-5 h-5"></div>
-                    <span class="text-sm">Uploading... {{ uploadProgress }}%</span>
+                    <span class="text-sm">Uploading...</span>
                   </div>
                   <div v-else class="text-center">
                     <i data-lucide="image-plus" class="w-8 h-8 mx-auto mb-2 text-violet-400"></i>
@@ -489,13 +459,11 @@
               </div>
             </div>
             
-            <!-- Upload Error -->
             <div v-if="uploadError" class="text-red-400 text-sm mt-2 flex items-center gap-2">
               <i data-lucide="alert-circle" class="w-4 h-4"></i>
               {{ uploadError }}
             </div>
             
-            <!-- Image Preview -->
             <div v-if="formData.imageUrl" class="mt-4 flex items-center gap-4 p-3 bg-dark-700 rounded-lg">
               <img :src="formData.imageUrl" class="w-16 h-16 rounded-lg object-cover border border-dark-600" style="image-rendering: pixelated;" @error="handlePreviewError">
               <div class="flex-1 min-w-0">
@@ -536,8 +504,7 @@
           </div>
           <h3 class="text-xl font-bold mb-2">Delete Item?</h3>
           <p class="text-slate-400 mb-6">
-            Are you sure you want to delete <span class="text-white font-semibold">{{ itemToDelete?.name }}</span>? 
-            This action cannot be undone.
+            Are you sure you want to delete <span class="text-white font-semibold">{{ itemToDelete?.name }}</span>?
           </p>
           <div class="flex gap-3">
             <button @click="showDeleteModal = false" class="btn-secondary flex-1">Cancel</button>
@@ -547,7 +514,7 @@
       </div>
     </div>
     
-    <!-- Toast Notifications -->
+    <!-- Toast -->
     <div v-if="cleanupResult !== null" class="fixed bottom-4 right-4 glass-card px-4 py-3 flex items-center gap-3 animate-slideInUp z-50">
       <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
       <span>Removed {{ cleanupResult }} expired trades</span>
@@ -581,23 +548,18 @@
         const saving = ref(false);
         const formError = ref('');
         
-        // Admin management
         const newAdminEmail = ref('');
         const addingAdmin = ref(false);
         const adminError = ref('');
         const adminSuccess = ref('');
         
-        // Minecraft Icon Search
         const mcIconSearch = ref('');
         const selectedMcIcon = ref(null);
         
-        // File Upload
         const fileInput = ref(null);
         const uploading = ref(false);
-        const uploadProgress = ref(0);
         const uploadError = ref('');
         
-        // Cleanup
         const cleaningUp = ref(false);
         const cleanupResult = ref(null);
         
@@ -659,19 +621,8 @@
           
           uploading.value = true;
           uploadError.value = '';
-          uploadProgress.value = 0;
-          
-          // Simulate progress for better UX
-          const progressInterval = setInterval(() => {
-            if (uploadProgress.value < 90) {
-              uploadProgress.value += 10;
-            }
-          }, 200);
           
           const result = await window.FakepixelHub.uploadItemImage(file);
-          
-          clearInterval(progressInterval);
-          uploadProgress.value = 100;
           
           if (result.success) {
             formData.value.imageUrl = result.url;
@@ -680,36 +631,20 @@
           }
           
           uploading.value = false;
-          
-          // Reset input
           if (fileInput.value) fileInput.value.value = '';
           refreshIcons();
         };
         
-        const handleImageError = (e) => {
-          e.target.src = 'https://via.placeholder.com/40?text=?';
-        };
-        
-        const handleAvatarError = (e) => {
-          e.target.src = 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff';
-        };
-        
-        const handlePreviewError = (e) => {
-          e.target.src = 'https://via.placeholder.com/64?text=Error';
-        };
+        const handleImageError = (e) => { e.target.src = 'https://via.placeholder.com/40?text=?'; };
+        const handleAvatarError = (e) => { e.target.src = 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff'; };
+        const handlePreviewError = (e) => { e.target.src = 'https://via.placeholder.com/64?text=Error'; };
         
         const openAddModal = () => {
           editingItem.value = null;
           selectedMcIcon.value = null;
           mcIconSearch.value = '';
           uploadError.value = '';
-          formData.value = {
-            name: '',
-            value: 0,
-            demand: 'Medium',
-            trend: 'stable',
-            imageUrl: ''
-          };
+          formData.value = { name: '', value: 0, demand: 'Medium', trend: 'stable', imageUrl: '' };
           formError.value = '';
           showModal.value = true;
           refreshIcons();
@@ -825,18 +760,12 @@
           
           if (result.success) {
             cleanupResult.value = result.count;
-            setTimeout(() => {
-              cleanupResult.value = null;
-            }, 3000);
+            setTimeout(() => { cleanupResult.value = null; }, 3000);
           }
           refreshIcons();
         };
         
-        const refreshIcons = () => {
-          setTimeout(() => {
-            if (window.lucide) lucide.createIcons();
-          }, 50);
-        };
+        const refreshIcons = () => { setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50); };
         
         onMounted(async () => {
           if (window.FakepixelHub.initFirebase()) {
@@ -848,10 +777,7 @@
               user.value = userData;
               
               if (userData) {
-                // Check Super Admin
                 isSuperAdmin.value = window.FakepixelHub.isSuperAdmin(userData.email);
-                
-                // Check Admin status
                 isAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
               } else {
                 isAdmin.value = false;
@@ -862,20 +788,17 @@
               refreshIcons();
             });
             
-            // Items listener
             unsubscribeItems = window.FakepixelHub.subscribeToItems((data) => {
               items.value = data;
               loading.value = false;
               refreshIcons();
             });
             
-            // Trades listener
             unsubscribeTrades = window.FakepixelHub.subscribeToTrades((data) => {
               trades.value = data;
               refreshIcons();
             });
             
-            // Admins listener
             unsubscribeAdmins = window.FakepixelHub.subscribeToAdmins((data) => {
               adminsList.value = data;
               refreshIcons();
@@ -898,60 +821,17 @@
         watch([showModal, showDeleteModal, isAdmin], refreshIcons);
         
         return {
-          user,
-          authLoading,
-          isAdmin,
-          isSuperAdmin,
-          items,
-          trades,
-          adminsList,
-          loading,
-          showModal,
-          showDeleteModal,
-          editingItem,
-          itemToDelete,
-          formData,
-          formError,
-          saving,
-          newAdminEmail,
-          addingAdmin,
-          adminError,
-          adminSuccess,
-          mcIconSearch,
-          selectedMcIcon,
-          filteredMcIcons,
-          fileInput,
-          uploading,
-          uploadProgress,
-          uploadError,
-          cleaningUp,
-          cleanupResult,
-          highDemandCount,
-          formatNumber,
-          formatTime,
-          getDaysUntilExpiry,
-          isExpiringSoon,
-          getDemandClass,
-          getTrendClass,
-          getTrendIcon,
-          getTrendText,
-          handleGoogleSignIn,
-          handleSignOut,
-          selectMcIcon,
-          handleFileSelect,
-          handleImageError,
-          handleAvatarError,
-          handlePreviewError,
-          openAddModal,
-          openEditModal,
-          closeModal,
-          saveItem,
-          confirmDelete,
-          deleteItem,
-          deleteTrade,
-          handleAddAdmin,
-          handleRemoveAdmin,
-          runCleanup
+          user, authLoading, isAdmin, isSuperAdmin, items, trades, adminsList, loading,
+          showModal, showDeleteModal, editingItem, itemToDelete, formData, formError, saving,
+          newAdminEmail, addingAdmin, adminError, adminSuccess,
+          mcIconSearch, selectedMcIcon, filteredMcIcons,
+          fileInput, uploading, uploadError, cleaningUp, cleanupResult, highDemandCount,
+          formatNumber, formatTime, getDaysUntilExpiry, isExpiringSoon, getDemandClass,
+          getTrendClass, getTrendIcon, getTrendText,
+          handleGoogleSignIn, handleSignOut, selectMcIcon, handleFileSelect,
+          handleImageError, handleAvatarError, handlePreviewError,
+          openAddModal, openEditModal, closeModal, saveItem, confirmDelete, deleteItem, deleteTrade,
+          handleAddAdmin, handleRemoveAdmin, runCleanup
         };
       }
     }).mount('#app');

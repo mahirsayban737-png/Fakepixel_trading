@@ -738,6 +738,22 @@ html {
   animation: slideInUp 0.3s ease-out;
 }
 
+/* Auth Loading Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
 /* Gradient Text */
 .gradient-text {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
