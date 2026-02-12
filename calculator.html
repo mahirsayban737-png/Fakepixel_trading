@@ -67,7 +67,7 @@
             <i data-lucide="calculator" class="w-4 h-4"></i>
             <span class="hidden sm:inline">Calculator</span>
           </a>
-          <a href="admin.html" class="nav-link flex items-center gap-2">
+          <a v-if="isUserAdmin" href="admin.html" class="nav-link flex items-center gap-2">
             <i data-lucide="shield" class="w-4 h-4"></i>
             <span class="hidden sm:inline">Admin</span>
           </a>
@@ -107,21 +107,24 @@
         <div v-else class="space-y-6">
           <!-- Trade Sides -->
           <div class="grid lg:grid-cols-2 gap-6">
-            <!-- Your Side (Offering) -->
+            <!-- Your Side (Giving) -->
             <div class="glass-card p-6">
               <div class="flex items-center gap-2 mb-4">
                 <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                   <i data-lucide="arrow-up-circle" class="w-5 h-5 text-emerald-400"></i>
                 </div>
-                <h2 class="text-lg font-bold">You're Offering</h2>
+                <h2 class="text-lg font-bold">You're Giving</h2>
               </div>
               
-              <!-- Add Item -->
+              <!-- Search & Add Item -->
+              <div class="mb-3">
+                <input v-model="offeringSearch" type="text" class="input-field text-sm py-2 mb-2" placeholder="Search items...">
+              </div>
               <div class="flex gap-2 mb-4">
                 <select v-model="selectedOfferingItem" class="input-field flex-1">
                   <option value="">Select item to add...</option>
-                  <option v-for="item in items" :key="item.id" :value="item.id">
-                    {{ item.name }} - {{ formatNumber(item.value) }} coins
+                  <option v-for="item in filteredOfferingItems" :key="item.id" :value="item.id">
+                    {{ item.name }} - {{ formatNumber(item.value) }}
                   </option>
                 </select>
                 <input v-model.number="offeringQuantity" type="number" min="1" class="input-field w-20" placeholder="Qty">
@@ -165,13 +168,13 @@
                 </div>
               </div>
               
-              <!-- Purse Offering -->
+              <!-- Purse Giving -->
               <div class="mt-4 pt-4 border-t border-dark-600">
                 <label class="text-sm text-slate-400 mb-2 flex items-center gap-2">
-                  <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
-                  Additional Coins
+                  <i data-lucide="wallet" class="w-4 h-4 text-amber-400"></i>
+                  Additional Purse
                 </label>
-                <input v-model.number="purseOffering" type="number" min="0" class="input-field mt-2" placeholder="Enter coins amount...">
+                <input v-model.number="purseOffering" type="number" min="0" class="input-field mt-2" placeholder="Enter purse amount...">
               </div>
               
               <!-- Total -->
@@ -181,7 +184,7 @@
               </div>
             </div>
             
-            <!-- Their Side (Seeking) -->
+            <!-- Their Side (Wanting) -->
             <div class="glass-card p-6">
               <div class="flex items-center gap-2 mb-4">
                 <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
@@ -190,12 +193,15 @@
                 <h2 class="text-lg font-bold">You're Receiving</h2>
               </div>
               
-              <!-- Add Item -->
+              <!-- Search & Add Item -->
+              <div class="mb-3">
+                <input v-model="seekingSearch" type="text" class="input-field text-sm py-2 mb-2" placeholder="Search items...">
+              </div>
               <div class="flex gap-2 mb-4">
                 <select v-model="selectedSeekingItem" class="input-field flex-1">
                   <option value="">Select item to add...</option>
-                  <option v-for="item in items" :key="item.id" :value="item.id">
-                    {{ item.name }} - {{ formatNumber(item.value) }} coins
+                  <option v-for="item in filteredSeekingItems" :key="item.id" :value="item.id">
+                    {{ item.name }} - {{ formatNumber(item.value) }}
                   </option>
                 </select>
                 <input v-model.number="seekingQuantity" type="number" min="1" class="input-field w-20" placeholder="Qty">
@@ -239,13 +245,13 @@
                 </div>
               </div>
               
-              <!-- Purse Seeking -->
+              <!-- Purse Receiving -->
               <div class="mt-4 pt-4 border-t border-dark-600">
                 <label class="text-sm text-slate-400 mb-2 flex items-center gap-2">
-                  <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
-                  Additional Coins
+                  <i data-lucide="wallet" class="w-4 h-4 text-amber-400"></i>
+                  Additional Purse
                 </label>
-                <input v-model.number="purseSeeking" type="number" min="0" class="input-field mt-2" placeholder="Enter coins amount...">
+                <input v-model.number="purseSeeking" type="number" min="0" class="input-field mt-2" placeholder="Enter purse amount...">
               </div>
               
               <!-- Total -->
@@ -320,8 +326,13 @@
               Market Overview
             </h2>
             
+            <!-- Search -->
+            <div class="mb-4">
+              <input v-model="marketSearch" type="text" class="input-field" placeholder="Search market items...">
+            </div>
+            
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div v-for="item in items" :key="item.id" 
+              <div v-for="item in filteredMarketItems" :key="item.id" 
                    class="flex items-center gap-3 bg-dark-700/50 rounded-lg p-3 hover:bg-dark-700 transition-colors cursor-pointer"
                    @click="quickAddItem(item)">
                 <img v-if="item.imageUrl" 
@@ -356,7 +367,7 @@
     
     <!-- Quick Add Modal -->
     <div v-if="showQuickAddModal" class="modal-overlay" @click.self="showQuickAddModal = false">
-      <div class="modal-content max-w-sm">
+      <div class="modal-content glass-modal max-w-sm">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-bold">Add {{ quickAddItemData?.name }}</h3>
           <button @click="showQuickAddModal = false" class="text-slate-400 hover:text-white">
@@ -368,7 +379,7 @@
           <img v-if="quickAddItemData?.imageUrl" :src="quickAddItemData.imageUrl" class="w-16 h-16 rounded-lg" style="image-rendering: pixelated;">
           <div>
             <div class="font-medium">{{ quickAddItemData?.name }}</div>
-            <div class="text-sm text-violet-400">{{ formatNumber(quickAddItemData?.value || 0) }} coins</div>
+            <div class="text-sm text-violet-400">{{ formatNumber(quickAddItemData?.value || 0) }} per item</div>
           </div>
         </div>
         
@@ -380,7 +391,7 @@
         <div class="grid grid-cols-2 gap-3">
           <button @click="confirmQuickAdd('offering')" class="btn-secondary flex items-center justify-center gap-2">
             <i data-lucide="arrow-up" class="w-4 h-4 text-emerald-400"></i>
-            Offering
+            Giving
           </button>
           <button @click="confirmQuickAdd('seeking')" class="btn-secondary flex items-center justify-center gap-2">
             <i data-lucide="arrow-down" class="w-4 h-4 text-cyan-400"></i>
@@ -398,6 +409,8 @@
     
     createApp({
       setup() {
+        const user = ref(null);
+        const isUserAdmin = ref(false);
         const items = ref([]);
         const loading = ref(true);
         
@@ -405,11 +418,15 @@
         const offeringQuantity = ref(1);
         const offeringItems = ref([]);
         const purseOffering = ref(0);
+        const offeringSearch = ref('');
         
         const selectedSeekingItem = ref('');
         const seekingQuantity = ref(1);
         const seekingItems = ref([]);
         const purseSeeking = ref(0);
+        const seekingSearch = ref('');
+        
+        const marketSearch = ref('');
         
         // Quick add modal
         const showQuickAddModal = ref(false);
@@ -417,6 +434,26 @@
         const quickAddQty = ref(1);
         
         let unsubscribeItems = null;
+        let unsubscribeAuth = null;
+        
+        // Filtered items based on search
+        const filteredOfferingItems = computed(() => {
+          if (!offeringSearch.value) return items.value;
+          const search = offeringSearch.value.toLowerCase();
+          return items.value.filter(item => item.name?.toLowerCase().includes(search));
+        });
+        
+        const filteredSeekingItems = computed(() => {
+          if (!seekingSearch.value) return items.value;
+          const search = seekingSearch.value.toLowerCase();
+          return items.value.filter(item => item.name?.toLowerCase().includes(search));
+        });
+        
+        const filteredMarketItems = computed(() => {
+          if (!marketSearch.value) return items.value;
+          const search = marketSearch.value.toLowerCase();
+          return items.value.filter(item => item.name?.toLowerCase().includes(search));
+        });
         
         const getItemData = (itemId) => {
           return items.value.find(i => i.id === itemId);
@@ -608,8 +645,22 @@
           }, 50);
         };
         
-        onMounted(() => {
+        onMounted(async () => {
           if (window.FakepixelHub.initFirebase()) {
+            // Handle redirect
+            await window.FakepixelHub.handleRedirectResult();
+            
+            // Auth listener for admin status
+            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
+              user.value = userData;
+              if (userData) {
+                isUserAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
+              } else {
+                isUserAdmin.value = false;
+              }
+              refreshIcons();
+            });
+            
             unsubscribeItems = window.FakepixelHub.subscribeToItems((data) => {
               items.value = data;
               loading.value = false;
@@ -624,6 +675,7 @@
         
         onUnmounted(() => {
           if (unsubscribeItems) unsubscribeItems();
+          if (unsubscribeAuth) unsubscribeAuth();
         });
         
         watch([offeringItems, seekingItems, showQuickAddModal], () => {
@@ -631,16 +683,24 @@
         }, { deep: true });
         
         return {
+          user,
+          isUserAdmin,
           items,
           loading,
           selectedOfferingItem,
           offeringQuantity,
           offeringItems,
           purseOffering,
+          offeringSearch,
+          filteredOfferingItems,
           selectedSeekingItem,
           seekingQuantity,
           seekingItems,
           purseSeeking,
+          seekingSearch,
+          filteredSeekingItems,
+          marketSearch,
+          filteredMarketItems,
           offeringTotal,
           seekingTotal,
           difference,
