@@ -1,12 +1,672 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fakepixel Bazaar - Minecraft Trading Platform</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#020617">
+  <title>Fakepixel Trading Hub</title>
+  
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  
+  <!-- Vue.js 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              900: '#020617',
+              800: '#0f172a',
+              700: '#1e293b',
+              600: '#334155'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-dark-900 min-h-screen">
+  <div id="app">
+    <!-- Navbar -->
+    <nav class="navbar px-4 py-3">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <!-- Logo -->
+        <a href="index.html" class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+            <i data-lucide="gem" class="w-6 h-6 text-white"></i>
+          </div>
+          <span class="text-xl font-bold gradient-text hidden sm:block">Fakepixel Hub</span>
+        </a>
+        
+        <!-- Nav Links -->
+        <div class="flex items-center gap-2 sm:gap-4">
+          <a href="index.html" class="nav-link active flex items-center gap-2">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Live Trades</span>
+          </a>
+          <a href="calculator.html" class="nav-link flex items-center gap-2">
+            <i data-lucide="calculator" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Calculator</span>
+          </a>
+          <a href="admin.html" class="nav-link flex items-center gap-2">
+            <i data-lucide="shield" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Admin</span>
+          </a>
+        </div>
+        
+        <!-- User / Auth -->
+        <div class="flex items-center gap-3">
+          <div class="live-indicator mr-2">
+            <span class="live-dot"></span>
+            <span class="text-sm text-emerald-400 font-medium hidden sm:block">Live</span>
+          </div>
+          
+          <!-- User Profile / Sign In -->
+          <div v-if="user" class="flex items-center gap-2">
+            <img :src="user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName)" 
+                 :alt="user.displayName" 
+                 class="user-avatar-sm">
+            <button @click="handleSignOut" class="text-slate-400 hover:text-white p-2">
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <button v-else @click="handleGoogleSignIn" class="btn-google text-sm py-2 px-3">
+            <svg class="w-4 h-4" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            <span class="hidden sm:inline">Sign In</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section class="py-12 sm:py-20 px-4">
+      <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl sm:text-6xl font-extrabold mb-4">
+          <span class="gradient-text">Fakepixel</span> Trading Hub
+        </h1>
+        <p class="text-slate-400 text-lg sm:text-xl max-w-2xl mx-auto mb-8">
+          Real-time marketplace for Minecraft trades. Track prices, calculate fairness, and find the best deals.
+        </p>
+        
+        <!-- Stats Bar -->
+        <div class="flex flex-wrap justify-center gap-4 sm:gap-8">
+          <div class="glass-card px-6 py-4">
+            <div class="text-2xl font-bold text-violet-400">{{ items.length }}</div>
+            <div class="text-sm text-slate-400">Items Listed</div>
+          </div>
+          <div class="glass-card px-6 py-4">
+            <div class="text-2xl font-bold text-cyan-400">{{ trades.length }}</div>
+            <div class="text-sm text-slate-400">Active Trades</div>
+          </div>
+          <div class="glass-card px-6 py-4">
+            <div class="text-2xl font-bold text-emerald-400">{{ onlineCount }}</div>
+            <div class="text-sm text-slate-400">Online Now</div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Create Trade Section -->
+    <section class="py-8 px-4" v-if="user">
+      <div class="max-w-4xl mx-auto">
+        <div class="glass-card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold flex items-center gap-2">
+              <i data-lucide="plus-circle" class="w-5 h-5 text-violet-400"></i>
+              Post a Trade
+            </h2>
+            <div class="text-sm text-slate-400">
+              {{ userTradeCount }}/5 trades used
+            </div>
+          </div>
+          
+          <!-- Trade Description -->
+          <div class="mb-4">
+            <label class="block text-sm text-slate-400 mb-2">Trade Description</label>
+            <textarea v-model="newTrade.description" class="input-field" rows="2" placeholder="Describe your trade..."></textarea>
+          </div>
+          
+          <div class="grid lg:grid-cols-2 gap-6 mb-4">
+            <!-- Offering Side -->
+            <div class="bg-dark-700/50 rounded-xl p-4">
+              <h3 class="text-sm font-semibold text-emerald-400 mb-3 flex items-center gap-2">
+                <i data-lucide="arrow-up-circle" class="w-4 h-4"></i>
+                You're Offering
+              </h3>
+              
+              <!-- Item Selector -->
+              <div class="flex gap-2 mb-3">
+                <select v-model="selectedOfferingItem" class="input-field flex-1 text-sm py-2">
+                  <option value="">Add item...</option>
+                  <option v-for="item in items" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
+                <input v-model.number="offeringQty" type="number" min="1" class="input-field w-16 text-sm py-2" placeholder="Qty">
+                <button @click="addOfferingItem" class="btn-primary px-3 py-2" :disabled="!selectedOfferingItem">
+                  <i data-lucide="plus" class="w-4 h-4"></i>
+                </button>
+              </div>
+              
+              <!-- Selected Items -->
+              <div class="multi-item-container" v-if="newTrade.offering.length">
+                <div v-for="(item, idx) in newTrade.offering" :key="idx" class="multi-item-card">
+                  <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
+                  <div class="item-name">{{ getItemName(item.id) }}</div>
+                  <div class="item-qty">x{{ item.quantity }}</div>
+                  <button @click="removeOfferingItem(idx)" class="text-red-400 text-xs mt-1">
+                    <i data-lucide="x" class="w-3 h-3"></i>
+                  </button>
+                </div>
+              </div>
+              <div v-else class="text-center py-4 text-slate-500 text-sm">No items added</div>
+              
+              <!-- Purse Offering -->
+              <div class="mt-3 flex items-center gap-2">
+                <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+                <input v-model.number="newTrade.purseOffering" type="number" min="0" class="input-field flex-1 text-sm py-2" placeholder="Coins offering">
+              </div>
+            </div>
+            
+            <!-- Seeking Side -->
+            <div class="bg-dark-700/50 rounded-xl p-4">
+              <h3 class="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-2">
+                <i data-lucide="arrow-down-circle" class="w-4 h-4"></i>
+                You're Seeking
+              </h3>
+              
+              <!-- Item Selector -->
+              <div class="flex gap-2 mb-3">
+                <select v-model="selectedSeekingItem" class="input-field flex-1 text-sm py-2">
+                  <option value="">Add item...</option>
+                  <option v-for="item in items" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </option>
+                </select>
+                <input v-model.number="seekingQty" type="number" min="1" class="input-field w-16 text-sm py-2" placeholder="Qty">
+                <button @click="addSeekingItem" class="btn-primary px-3 py-2" :disabled="!selectedSeekingItem">
+                  <i data-lucide="plus" class="w-4 h-4"></i>
+                </button>
+              </div>
+              
+              <!-- Selected Items -->
+              <div class="multi-item-container" v-if="newTrade.seeking.length">
+                <div v-for="(item, idx) in newTrade.seeking" :key="idx" class="multi-item-card">
+                  <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
+                  <div class="item-name">{{ getItemName(item.id) }}</div>
+                  <div class="item-qty">x{{ item.quantity }}</div>
+                  <button @click="removeSeekingItem(idx)" class="text-red-400 text-xs mt-1">
+                    <i data-lucide="x" class="w-3 h-3"></i>
+                  </button>
+                </div>
+              </div>
+              <div v-else class="text-center py-4 text-slate-500 text-sm">No items added</div>
+              
+              <!-- Purse Seeking -->
+              <div class="mt-3 flex items-center gap-2">
+                <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+                <input v-model.number="newTrade.purseSeeking" type="number" min="0" class="input-field flex-1 text-sm py-2" placeholder="Coins seeking">
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="tradeError" class="text-red-400 text-sm mb-4 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-4 h-4"></i>
+            {{ tradeError }}
+          </div>
+          
+          <button @click="postTrade" class="btn-primary w-full sm:w-auto" :disabled="!canPostTrade || posting">
+            <span v-if="posting" class="flex items-center justify-center gap-2">
+              <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              Posting...
+            </span>
+            <span v-else class="flex items-center justify-center gap-2">
+              <i data-lucide="send" class="w-4 h-4"></i>
+              Post Trade
+            </span>
+          </button>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Sign In Prompt -->
+    <section class="py-8 px-4" v-else>
+      <div class="max-w-md mx-auto">
+        <div class="glass-card p-8 text-center">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="user-plus" class="w-8 h-8 text-white"></i>
+          </div>
+          <h2 class="text-xl font-bold mb-2">Join the Trading Community</h2>
+          <p class="text-slate-400 mb-6">Sign in with Google to post trades and connect with other players.</p>
+          <button @click="handleGoogleSignIn" class="btn-google w-full justify-center">
+            <svg class="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Sign in with Google
+          </button>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Live Trades Section -->
+    <section class="py-8 px-4 pb-20">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <h2 class="text-2xl font-bold flex items-center gap-2">
+            <i data-lucide="radio" class="w-6 h-6 text-violet-400"></i>
+            Live Trades
+          </h2>
+          
+          <!-- Filter Tabs -->
+          <div class="filter-tabs">
+            <button @click="tradeFilter = 'all'" :class="{ active: tradeFilter === 'all' }" class="filter-tab">
+              All Trades
+            </button>
+            <button @click="tradeFilter = 'mine'" :class="{ active: tradeFilter === 'mine' }" class="filter-tab" :disabled="!user">
+              My Trades
+            </button>
+          </div>
+        </div>
+        
+        <!-- Loading State -->
+        <div v-if="loading" class="flex justify-center py-12">
+          <div class="spinner"></div>
+        </div>
+        
+        <!-- Empty State -->
+        <div v-else-if="filteredTrades.length === 0" class="empty-state glass-card">
+          <i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 text-slate-600"></i>
+          <h3 class="text-xl font-semibold text-slate-400 mb-2">No Trades Yet</h3>
+          <p class="text-slate-500">{{ tradeFilter === 'mine' ? 'You haven\'t posted any trades yet.' : 'Be the first to post a trade!' }}</p>
+        </div>
+        
+        <!-- Trades Grid -->
+        <div v-else class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-for="trade in filteredTrades" :key="trade.id" class="trade-card glass-card p-5">
+            <!-- Trade Header -->
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <img :src="trade.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(trade.username)" 
+                     :alt="trade.username"
+                     class="w-10 h-10 rounded-full object-cover border-2 border-violet-500/50">
+                <div>
+                  <div class="font-semibold">{{ trade.username || 'Anonymous' }}</div>
+                  <div class="text-xs text-slate-500 flex items-center gap-2">
+                    <span>{{ formatTime(trade.timestamp) }}</span>
+                    <span class="expiry-badge" :class="{ 'expiring-soon': getDaysUntilExpiry(trade.timestamp) <= 1 }">
+                      <i data-lucide="clock" class="w-3 h-3"></i>
+                      {{ getDaysUntilExpiry(trade.timestamp) }}d left
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Delete Button (Owner Only) -->
+              <button v-if="user && trade.uid === user.uid" 
+                      @click="handleDeleteTrade(trade.id)" 
+                      class="text-slate-400 hover:text-red-400 p-2 transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+            
+            <!-- Trade Description -->
+            <p v-if="trade.description" class="text-slate-300 text-sm mb-4 line-clamp-2">{{ trade.description }}</p>
+            
+            <!-- Multi-Item Display -->
+            <div class="grid grid-cols-[1fr,auto,1fr] gap-2 mb-4">
+              <!-- Offering -->
+              <div>
+                <div class="text-xs text-emerald-400 font-semibold mb-2 flex items-center gap-1">
+                  <i data-lucide="arrow-up" class="w-3 h-3"></i> Offering
+                </div>
+                <div class="multi-item-container">
+                  <div v-for="(item, idx) in trade.offering" :key="idx" class="multi-item-card">
+                    <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
+                    <div class="item-name">{{ getItemName(item.id) }}</div>
+                    <div class="item-qty">x{{ item.quantity }}</div>
+                  </div>
+                  <div v-if="!trade.offering?.length && !trade.purseOffering" class="text-slate-500 text-xs py-4">No items</div>
+                </div>
+                <div v-if="trade.purseOffering" class="purse-badge mt-2">
+                  <i data-lucide="coins" class="w-3 h-3"></i>
+                  {{ formatNumber(trade.purseOffering) }}
+                </div>
+              </div>
+              
+              <!-- Arrow -->
+              <div class="trade-arrow">
+                <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
+              </div>
+              
+              <!-- Seeking -->
+              <div>
+                <div class="text-xs text-cyan-400 font-semibold mb-2 flex items-center gap-1">
+                  <i data-lucide="arrow-down" class="w-3 h-3"></i> Seeking
+                </div>
+                <div class="multi-item-container">
+                  <div v-for="(item, idx) in trade.seeking" :key="idx" class="multi-item-card">
+                    <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
+                    <div class="item-name">{{ getItemName(item.id) }}</div>
+                    <div class="item-qty">x{{ item.quantity }}</div>
+                  </div>
+                  <div v-if="!trade.seeking?.length && !trade.purseSeeking" class="text-slate-500 text-xs py-4">No items</div>
+                </div>
+                <div v-if="trade.purseSeeking" class="purse-badge mt-2">
+                  <i data-lucide="coins" class="w-3 h-3"></i>
+                  {{ formatNumber(trade.purseSeeking) }}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Contact Button -->
+            <button class="btn-secondary w-full text-sm" @click="contactTrader(trade)">
+              <span class="flex items-center justify-center gap-2">
+                <i data-lucide="message-circle" class="w-4 h-4"></i>
+                Contact Trader
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Contact Modal -->
+    <div v-if="showContactModal" class="modal-overlay" @click.self="showContactModal = false">
+      <div class="modal-content">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold">Contact Trader</h3>
+          <button @click="showContactModal = false" class="text-slate-400 hover:text-white">
+            <i data-lucide="x" class="w-6 h-6"></i>
+          </button>
+        </div>
+        <p class="text-slate-400 mb-4">
+          To contact <span class="text-violet-400 font-semibold">{{ selectedTrade?.username }}</span>, 
+          message them in-game on Fakepixel server.
+        </p>
+        <div class="bg-dark-700 rounded-lg p-4 mb-4">
+          <code class="text-cyan-400">/msg {{ selectedTrade?.username }} I'm interested in your trade!</code>
+        </div>
+        <button @click="showContactModal = false" class="btn-primary w-full">Got it!</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Core App Logic -->
+  <script src="app.js"></script>
+  
+  <script>
+    const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+    
+    createApp({
+      setup() {
+        const user = ref(null);
+        const items = ref([]);
+        const trades = ref([]);
+        const loading = ref(true);
+        const onlineCount = ref(Math.floor(Math.random() * 50) + 20);
+        const showContactModal = ref(false);
+        const selectedTrade = ref(null);
+        const tradeFilter = ref('all');
+        const tradeError = ref('');
+        const posting = ref(false);
+        const userTradeCount = ref(0);
+        
+        // New trade form
+        const newTrade = ref({
+          description: '',
+          offering: [],
+          seeking: [],
+          purseOffering: 0,
+          purseSeeking: 0
+        });
+        
+        // Item selection
+        const selectedOfferingItem = ref('');
+        const offeringQty = ref(1);
+        const selectedSeekingItem = ref('');
+        const seekingQty = ref(1);
+        
+        let unsubscribeItems = null;
+        let unsubscribeTrades = null;
+        let unsubscribeAuth = null;
+        
+        const filteredTrades = computed(() => {
+          if (tradeFilter.value === 'mine' && user.value) {
+            return trades.value.filter(t => t.uid === user.value.uid);
+          }
+          return trades.value;
+        });
+        
+        const canPostTrade = computed(() => {
+          return newTrade.value.description.trim() && 
+                 (newTrade.value.offering.length > 0 || newTrade.value.purseOffering > 0) &&
+                 (newTrade.value.seeking.length > 0 || newTrade.value.purseSeeking > 0) &&
+                 userTradeCount.value < 5;
+        });
+        
+        const formatNumber = (num) => window.FakepixelHub.formatNumber(num);
+        const formatTime = (timestamp) => window.FakepixelHub.formatRelativeTime(timestamp);
+        const getDaysUntilExpiry = (timestamp) => window.FakepixelHub.getDaysUntilExpiry(timestamp);
+        
+        const getItemName = (itemId) => {
+          if (!itemId) return 'Unknown';
+          const item = items.value.find(i => i.id === itemId);
+          return item ? item.name : 'Market Data Pending';
+        };
+        
+        const getItemImage = (itemId) => {
+          if (!itemId) return 'https://via.placeholder.com/40?text=?';
+          const item = items.value.find(i => i.id === itemId);
+          return item?.imageUrl || 'https://via.placeholder.com/40?text=?';
+        };
+        
+        const handleImageError = (e) => {
+          e.target.src = 'https://via.placeholder.com/40?text=?';
+        };
+        
+        const addOfferingItem = () => {
+          if (!selectedOfferingItem.value) return;
+          newTrade.value.offering.push({
+            id: selectedOfferingItem.value,
+            quantity: offeringQty.value || 1
+          });
+          selectedOfferingItem.value = '';
+          offeringQty.value = 1;
+          refreshIcons();
+        };
+        
+        const removeOfferingItem = (idx) => {
+          newTrade.value.offering.splice(idx, 1);
+        };
+        
+        const addSeekingItem = () => {
+          if (!selectedSeekingItem.value) return;
+          newTrade.value.seeking.push({
+            id: selectedSeekingItem.value,
+            quantity: seekingQty.value || 1
+          });
+          selectedSeekingItem.value = '';
+          seekingQty.value = 1;
+          refreshIcons();
+        };
+        
+        const removeSeekingItem = (idx) => {
+          newTrade.value.seeking.splice(idx, 1);
+        };
+        
+        const postTrade = async () => {
+          if (!canPostTrade.value) return;
+          
+          posting.value = true;
+          tradeError.value = '';
+          
+          const result = await window.FakepixelHub.createTrade({
+            description: newTrade.value.description.trim(),
+            offering: newTrade.value.offering,
+            seeking: newTrade.value.seeking,
+            purseOffering: newTrade.value.purseOffering || 0,
+            purseSeeking: newTrade.value.purseSeeking || 0
+          });
+          
+          if (result.success) {
+            newTrade.value = {
+              description: '',
+              offering: [],
+              seeking: [],
+              purseOffering: 0,
+              purseSeeking: 0
+            };
+            updateUserTradeCount();
+          } else {
+            tradeError.value = result.error;
+          }
+          
+          posting.value = false;
+        };
+        
+        const handleDeleteTrade = async (tradeId) => {
+          if (confirm('Are you sure you want to delete this trade?')) {
+            await window.FakepixelHub.deleteTrade(tradeId);
+            updateUserTradeCount();
+          }
+        };
+        
+        const contactTrader = (trade) => {
+          selectedTrade.value = trade;
+          showContactModal.value = true;
+        };
+        
+        const handleGoogleSignIn = async () => {
+          const result = await window.FakepixelHub.signInWithGoogle();
+          if (!result.success) {
+            alert('Sign in failed: ' + result.error);
+          }
+        };
+        
+        const handleSignOut = async () => {
+          await window.FakepixelHub.signOut();
+        };
+        
+        const updateUserTradeCount = async () => {
+          if (user.value) {
+            userTradeCount.value = await window.FakepixelHub.countUserTrades(user.value.uid);
+          } else {
+            userTradeCount.value = 0;
+          }
+        };
+        
+        const refreshIcons = () => {
+          setTimeout(() => {
+            if (window.lucide) lucide.createIcons();
+          }, 50);
+        };
+        
+        onMounted(() => {
+          if (window.FakepixelHub.initFirebase()) {
+            // Auth listener
+            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged((userData) => {
+              user.value = userData;
+              updateUserTradeCount();
+              refreshIcons();
+            });
+            
+            // Items listener
+            unsubscribeItems = window.FakepixelHub.subscribeToItems((data) => {
+              items.value = data;
+            });
+            
+            // Trades listener
+            unsubscribeTrades = window.FakepixelHub.subscribeToTrades((data) => {
+              trades.value = data;
+              loading.value = false;
+              refreshIcons();
+            });
+          } else {
+            loading.value = false;
+          }
+          
+          refreshIcons();
+          
+          // Simulate online count
+          setInterval(() => {
+            onlineCount.value = Math.floor(Math.random() * 50) + 20;
+          }, 30000);
+        });
+        
+        onUnmounted(() => {
+          if (unsubscribeItems) unsubscribeItems();
+          if (unsubscribeTrades) unsubscribeTrades();
+          if (unsubscribeAuth) unsubscribeAuth();
+        });
+        
+        watch([user, trades], updateUserTradeCount);
+        
+        return {
+          user,
+          items,
+          trades,
+          loading,
+          onlineCount,
+          newTrade,
+          selectedOfferingItem,
+          offeringQty,
+          selectedSeekingItem,
+          seekingQty,
+          canPostTrade,
+          tradeFilter,
+          filteredTrades,
+          showContactModal,
+          selectedTrade,
+          tradeError,
+          posting,
+          userTradeCount,
+          formatNumber,
+          formatTime,
+          getDaysUntilExpiry,
+          getItemName,
+          getItemImage,
+          handleImageError,
+          addOfferingItem,
+          removeOfferingItem,
+          addSeekingItem,
+          removeSeekingItem,
+          postTrade,
+          handleDeleteTrade,
+          contactTrader,
+          handleGoogleSignIn,
+          handleSignOut
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
 </html>

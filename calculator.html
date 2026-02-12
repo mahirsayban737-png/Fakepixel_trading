@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#020617">
+  <title>Trade Calculator - Fakepixel Hub</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  
+  <!-- Vue.js 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              900: '#020617',
+              800: '#0f172a',
+              700: '#1e293b',
+              600: '#334155'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-dark-900 min-h-screen">
+  <div id="app">
+    <!-- Navbar -->
+    <nav class="navbar px-4 py-3">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <a href="index.html" class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+            <i data-lucide="gem" class="w-6 h-6 text-white"></i>
+          </div>
+          <span class="text-xl font-bold gradient-text hidden sm:block">Fakepixel Hub</span>
+        </a>
+        
+        <div class="flex items-center gap-2 sm:gap-4">
+          <a href="index.html" class="nav-link flex items-center gap-2">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Live Trades</span>
+          </a>
+          <a href="calculator.html" class="nav-link active flex items-center gap-2">
+            <i data-lucide="calculator" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Calculator</span>
+          </a>
+          <a href="admin.html" class="nav-link flex items-center gap-2">
+            <i data-lucide="shield" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Admin</span>
+          </a>
+        </div>
+        
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          <span class="text-sm text-emerald-400 font-medium hidden sm:block">Live</span>
+        </div>
+      </div>
+    </nav>
+    
+    <!-- Calculator Section -->
+    <section class="py-8 sm:py-12 px-4">
+      <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+          <h1 class="text-3xl sm:text-4xl font-bold mb-2">
+            <span class="gradient-text">Trade Calculator</span>
+          </h1>
+          <p class="text-slate-400">Calculate trade fairness using real-time market prices</p>
+        </div>
+        
+        <!-- Loading State -->
+        <div v-if="loading" class="flex justify-center py-12">
+          <div class="spinner"></div>
+        </div>
+        
+        <!-- No Items State -->
+        <div v-else-if="items.length === 0" class="empty-state glass-card max-w-md mx-auto">
+          <i data-lucide="database" class="w-16 h-16 mx-auto mb-4 text-slate-600"></i>
+          <h3 class="text-xl font-semibold text-slate-400 mb-2">Market Data Pending</h3>
+          <p class="text-slate-500">Items haven't been added to the database yet.</p>
+        </div>
+        
+        <!-- Calculator UI -->
+        <div v-else class="space-y-6">
+          <!-- Trade Sides -->
+          <div class="grid lg:grid-cols-2 gap-6">
+            <!-- Your Side (Offering) -->
+            <div class="glass-card p-6">
+              <div class="flex items-center gap-2 mb-4">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <i data-lucide="arrow-up-circle" class="w-5 h-5 text-emerald-400"></i>
+                </div>
+                <h2 class="text-lg font-bold">You're Offering</h2>
+              </div>
+              
+              <!-- Add Item -->
+              <div class="flex gap-2 mb-4">
+                <select v-model="selectedOfferingItem" class="input-field flex-1">
+                  <option value="">Select item to add...</option>
+                  <option v-for="item in items" :key="item.id" :value="item.id">
+                    {{ item.name }} - {{ formatNumber(item.value) }} coins
+                  </option>
+                </select>
+                <input v-model.number="offeringQuantity" type="number" min="1" class="input-field w-20" placeholder="Qty">
+                <button @click="addOfferingItem" class="btn-primary px-4" :disabled="!selectedOfferingItem">
+                  <i data-lucide="plus" class="w-5 h-5"></i>
+                </button>
+              </div>
+              
+              <!-- Items List -->
+              <div class="space-y-2 max-h-64 overflow-y-auto">
+                <div v-if="offeringItems.length === 0" class="text-center py-8 text-slate-500">
+                  <i data-lucide="package" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                  <p class="text-sm">No items added yet</p>
+                </div>
+                <div v-for="(item, index) in offeringItems" :key="index" 
+                     class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+                  <div class="flex items-center gap-3">
+                    <img v-if="getItemData(item.id)?.imageUrl" 
+                         :src="getItemData(item.id).imageUrl" 
+                         class="w-10 h-10 rounded-lg object-cover" 
+                         :alt="getItemData(item.id)?.name"
+                         style="image-rendering: pixelated;">
+                    <div v-else class="w-10 h-10 rounded-lg bg-dark-600 flex items-center justify-center">
+                      <i data-lucide="box" class="w-5 h-5 text-slate-500"></i>
+                    </div>
+                    <div>
+                      <div class="font-medium">{{ getItemData(item.id)?.name || 'Unknown' }}</div>
+                      <div class="text-sm text-slate-400">
+                        {{ formatNumber(getItemData(item.id)?.value || 0) }} × {{ item.quantity }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-emerald-400 font-semibold">
+                      {{ formatNumber((getItemData(item.id)?.value || 0) * item.quantity) }}
+                    </span>
+                    <button @click="removeOfferingItem(index)" class="text-red-400 hover:text-red-300">
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Purse Offering -->
+              <div class="mt-4 pt-4 border-t border-dark-600">
+                <label class="text-sm text-slate-400 mb-2 flex items-center gap-2">
+                  <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+                  Additional Coins
+                </label>
+                <input v-model.number="purseOffering" type="number" min="0" class="input-field mt-2" placeholder="Enter coins amount...">
+              </div>
+              
+              <!-- Total -->
+              <div class="mt-4 pt-4 border-t border-dark-600 flex justify-between items-center">
+                <span class="text-slate-400">Total Value:</span>
+                <span class="text-2xl font-bold text-emerald-400">{{ formatNumber(offeringTotal) }}</span>
+              </div>
+            </div>
+            
+            <!-- Their Side (Seeking) -->
+            <div class="glass-card p-6">
+              <div class="flex items-center gap-2 mb-4">
+                <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                  <i data-lucide="arrow-down-circle" class="w-5 h-5 text-cyan-400"></i>
+                </div>
+                <h2 class="text-lg font-bold">You're Receiving</h2>
+              </div>
+              
+              <!-- Add Item -->
+              <div class="flex gap-2 mb-4">
+                <select v-model="selectedSeekingItem" class="input-field flex-1">
+                  <option value="">Select item to add...</option>
+                  <option v-for="item in items" :key="item.id" :value="item.id">
+                    {{ item.name }} - {{ formatNumber(item.value) }} coins
+                  </option>
+                </select>
+                <input v-model.number="seekingQuantity" type="number" min="1" class="input-field w-20" placeholder="Qty">
+                <button @click="addSeekingItem" class="btn-primary px-4" :disabled="!selectedSeekingItem">
+                  <i data-lucide="plus" class="w-5 h-5"></i>
+                </button>
+              </div>
+              
+              <!-- Items List -->
+              <div class="space-y-2 max-h-64 overflow-y-auto">
+                <div v-if="seekingItems.length === 0" class="text-center py-8 text-slate-500">
+                  <i data-lucide="package" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                  <p class="text-sm">No items added yet</p>
+                </div>
+                <div v-for="(item, index) in seekingItems" :key="index" 
+                     class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+                  <div class="flex items-center gap-3">
+                    <img v-if="getItemData(item.id)?.imageUrl" 
+                         :src="getItemData(item.id).imageUrl" 
+                         class="w-10 h-10 rounded-lg object-cover" 
+                         :alt="getItemData(item.id)?.name"
+                         style="image-rendering: pixelated;">
+                    <div v-else class="w-10 h-10 rounded-lg bg-dark-600 flex items-center justify-center">
+                      <i data-lucide="box" class="w-5 h-5 text-slate-500"></i>
+                    </div>
+                    <div>
+                      <div class="font-medium">{{ getItemData(item.id)?.name || 'Unknown' }}</div>
+                      <div class="text-sm text-slate-400">
+                        {{ formatNumber(getItemData(item.id)?.value || 0) }} × {{ item.quantity }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-cyan-400 font-semibold">
+                      {{ formatNumber((getItemData(item.id)?.value || 0) * item.quantity) }}
+                    </span>
+                    <button @click="removeSeekingItem(index)" class="text-red-400 hover:text-red-300">
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Purse Seeking -->
+              <div class="mt-4 pt-4 border-t border-dark-600">
+                <label class="text-sm text-slate-400 mb-2 flex items-center gap-2">
+                  <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+                  Additional Coins
+                </label>
+                <input v-model.number="purseSeeking" type="number" min="0" class="input-field mt-2" placeholder="Enter coins amount...">
+              </div>
+              
+              <!-- Total -->
+              <div class="mt-4 pt-4 border-t border-dark-600 flex justify-between items-center">
+                <span class="text-slate-400">Total Value:</span>
+                <span class="text-2xl font-bold text-cyan-400">{{ formatNumber(seekingTotal) }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Verdict Section -->
+          <div class="glass-card p-6">
+            <h2 class="text-xl font-bold text-center mb-6">Trade Analysis</h2>
+            
+            <!-- Verdict Meter -->
+            <div class="max-w-2xl mx-auto mb-6">
+              <div class="flex justify-between text-sm mb-2">
+                <span class="text-red-400">Loss</span>
+                <span class="text-amber-400">Fair</span>
+                <span class="text-emerald-400">Win</span>
+              </div>
+              <div class="verdict-meter h-4 rounded-full overflow-hidden bg-dark-700">
+                <div class="h-full transition-all duration-500 ease-out rounded-full"
+                     :style="{ width: verdictPercentage + '%' }"
+                     :class="verdictFillClass"></div>
+              </div>
+              <div class="flex justify-center mt-2">
+                <div class="w-0.5 h-4 bg-slate-500 relative" :style="{ left: (verdictPercentage - 50) + '%' }"></div>
+              </div>
+            </div>
+            
+            <!-- Verdict Display -->
+            <div class="text-center">
+              <div class="inline-flex items-center gap-3 px-8 py-4 rounded-2xl mb-4" :class="verdictBgClass">
+                <i :data-lucide="verdictIcon" class="w-8 h-8" :class="verdictTextClass"></i>
+                <span class="text-3xl font-bold" :class="verdictTextClass">{{ verdictText }}</span>
+              </div>
+              
+              <div class="grid grid-cols-3 gap-4 max-w-lg mx-auto mt-6">
+                <div class="text-center">
+                  <div class="text-sm text-slate-500 mb-1">You Give</div>
+                  <div class="text-lg font-semibold text-emerald-400">{{ formatNumber(offeringTotal) }}</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-sm text-slate-500 mb-1">Difference</div>
+                  <div class="text-lg font-semibold" :class="differenceClass">
+                    {{ differencePrefix }}{{ formatNumber(Math.abs(difference)) }}
+                  </div>
+                </div>
+                <div class="text-center">
+                  <div class="text-sm text-slate-500 mb-1">You Get</div>
+                  <div class="text-lg font-semibold text-cyan-400">{{ formatNumber(seekingTotal) }}</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Clear Button -->
+            <div class="flex justify-center mt-6">
+              <button @click="clearAll" class="btn-secondary">
+                <span class="flex items-center gap-2">
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                  Clear All
+                </span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Market Info -->
+          <div class="glass-card p-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+              <i data-lucide="trending-up" class="w-5 h-5 text-violet-400"></i>
+              Market Overview
+            </h2>
+            
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div v-for="item in items" :key="item.id" 
+                   class="flex items-center gap-3 bg-dark-700/50 rounded-lg p-3 hover:bg-dark-700 transition-colors cursor-pointer"
+                   @click="quickAddItem(item)">
+                <img v-if="item.imageUrl" 
+                     :src="item.imageUrl" 
+                     class="w-12 h-12 rounded-lg object-cover" 
+                     :alt="item.name"
+                     style="image-rendering: pixelated;">
+                <div v-else class="w-12 h-12 rounded-lg bg-dark-600 flex items-center justify-center">
+                  <i data-lucide="box" class="w-6 h-6 text-slate-500"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium truncate">{{ item.name }}</div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-violet-400 font-semibold">{{ formatNumber(item.value) }}</span>
+                    <span :class="getDemandClass(item.demand)" class="demand-tag text-xs">{{ item.demand || 'N/A' }}</span>
+                  </div>
+                </div>
+                <div :class="getTrendClass(item.trend)">
+                  <i :data-lucide="getTrendIcon(item.trend)" class="w-5 h-5"></i>
+                </div>
+              </div>
+            </div>
+            
+            <p class="text-center text-sm text-slate-500 mt-4">
+              <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+              Click any item to quickly add it to the calculator
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Quick Add Modal -->
+    <div v-if="showQuickAddModal" class="modal-overlay" @click.self="showQuickAddModal = false">
+      <div class="modal-content max-w-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold">Add {{ quickAddItemData?.name }}</h3>
+          <button @click="showQuickAddModal = false" class="text-slate-400 hover:text-white">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        
+        <div class="flex items-center gap-4 mb-4">
+          <img v-if="quickAddItemData?.imageUrl" :src="quickAddItemData.imageUrl" class="w-16 h-16 rounded-lg" style="image-rendering: pixelated;">
+          <div>
+            <div class="font-medium">{{ quickAddItemData?.name }}</div>
+            <div class="text-sm text-violet-400">{{ formatNumber(quickAddItemData?.value || 0) }} coins</div>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm text-slate-400 mb-2">Quantity</label>
+          <input v-model.number="quickAddQty" type="number" min="1" class="input-field" placeholder="Enter quantity...">
+        </div>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <button @click="confirmQuickAdd('offering')" class="btn-secondary flex items-center justify-center gap-2">
+            <i data-lucide="arrow-up" class="w-4 h-4 text-emerald-400"></i>
+            Offering
+          </button>
+          <button @click="confirmQuickAdd('seeking')" class="btn-secondary flex items-center justify-center gap-2">
+            <i data-lucide="arrow-down" class="w-4 h-4 text-cyan-400"></i>
+            Receiving
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="app.js"></script>
+  
+  <script>
+    const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+    
+    createApp({
+      setup() {
+        const items = ref([]);
+        const loading = ref(true);
+        
+        const selectedOfferingItem = ref('');
+        const offeringQuantity = ref(1);
+        const offeringItems = ref([]);
+        const purseOffering = ref(0);
+        
+        const selectedSeekingItem = ref('');
+        const seekingQuantity = ref(1);
+        const seekingItems = ref([]);
+        const purseSeeking = ref(0);
+        
+        // Quick add modal
+        const showQuickAddModal = ref(false);
+        const quickAddItemData = ref(null);
+        const quickAddQty = ref(1);
+        
+        let unsubscribeItems = null;
+        
+        const getItemData = (itemId) => {
+          return items.value.find(i => i.id === itemId);
+        };
+        
+        const formatNumber = (num) => {
+          return window.FakepixelHub.formatNumber(num);
+        };
+        
+        const getDemandClass = (demand) => {
+          return window.FakepixelHub.getDemandClass(demand);
+        };
+        
+        const getTrendInfo = (trend) => {
+          return window.FakepixelHub.getTrendInfo(trend);
+        };
+        
+        const getTrendClass = (trend) => {
+          return getTrendInfo(trend).class;
+        };
+        
+        const getTrendIcon = (trend) => {
+          return getTrendInfo(trend).icon;
+        };
+        
+        const addOfferingItem = () => {
+          if (!selectedOfferingItem.value) return;
+          offeringItems.value.push({
+            id: selectedOfferingItem.value,
+            quantity: offeringQuantity.value || 1
+          });
+          selectedOfferingItem.value = '';
+          offeringQuantity.value = 1;
+          refreshIcons();
+        };
+        
+        const removeOfferingItem = (index) => {
+          offeringItems.value.splice(index, 1);
+        };
+        
+        const addSeekingItem = () => {
+          if (!selectedSeekingItem.value) return;
+          seekingItems.value.push({
+            id: selectedSeekingItem.value,
+            quantity: seekingQuantity.value || 1
+          });
+          selectedSeekingItem.value = '';
+          seekingQuantity.value = 1;
+          refreshIcons();
+        };
+        
+        const removeSeekingItem = (index) => {
+          seekingItems.value.splice(index, 1);
+        };
+        
+        const quickAddItem = (item) => {
+          quickAddItemData.value = item;
+          quickAddQty.value = 1;
+          showQuickAddModal.value = true;
+          refreshIcons();
+        };
+        
+        const confirmQuickAdd = (side) => {
+          if (!quickAddItemData.value) return;
+          
+          const newItem = {
+            id: quickAddItemData.value.id,
+            quantity: quickAddQty.value || 1
+          };
+          
+          if (side === 'offering') {
+            offeringItems.value.push(newItem);
+          } else {
+            seekingItems.value.push(newItem);
+          }
+          
+          showQuickAddModal.value = false;
+          quickAddItemData.value = null;
+          refreshIcons();
+        };
+        
+        const clearAll = () => {
+          offeringItems.value = [];
+          seekingItems.value = [];
+          purseOffering.value = 0;
+          purseSeeking.value = 0;
+        };
+        
+        const offeringTotal = computed(() => {
+          const itemsTotal = offeringItems.value.reduce((sum, item) => {
+            const itemData = getItemData(item.id);
+            return sum + ((itemData?.value || 0) * item.quantity);
+          }, 0);
+          return itemsTotal + (purseOffering.value || 0);
+        });
+        
+        const seekingTotal = computed(() => {
+          const itemsTotal = seekingItems.value.reduce((sum, item) => {
+            const itemData = getItemData(item.id);
+            return sum + ((itemData?.value || 0) * item.quantity);
+          }, 0);
+          return itemsTotal + (purseSeeking.value || 0);
+        });
+        
+        const difference = computed(() => {
+          return seekingTotal.value - offeringTotal.value;
+        });
+        
+        const verdictPercentage = computed(() => {
+          if (offeringTotal.value === 0 && seekingTotal.value === 0) return 50;
+          const total = offeringTotal.value + seekingTotal.value;
+          const diff = difference.value;
+          const percentDiff = (diff / total) * 100;
+          return Math.min(100, Math.max(0, 50 + (percentDiff / 2)));
+        });
+        
+        const verdict = computed(() => {
+          const diff = Math.abs(difference.value);
+          const total = offeringTotal.value + seekingTotal.value;
+          if (total === 0) return 'neutral';
+          
+          const percentDiff = (diff / total) * 100;
+          if (percentDiff <= 5) return 'fair';
+          return difference.value > 0 ? 'win' : 'loss';
+        });
+        
+        const verdictText = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'WIN';
+            case 'loss': return 'LOSS';
+            case 'fair': return 'FAIR';
+            default: return 'ADD ITEMS';
+          }
+        });
+        
+        const verdictIcon = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'trophy';
+            case 'loss': return 'alert-triangle';
+            case 'fair': return 'scale';
+            default: return 'help-circle';
+          }
+        });
+        
+        const verdictFillClass = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'verdict-win';
+            case 'loss': return 'verdict-loss';
+            case 'fair': return 'verdict-fair';
+            default: return 'bg-slate-600';
+          }
+        });
+        
+        const verdictBgClass = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'bg-emerald-500/20 border border-emerald-500/30';
+            case 'loss': return 'bg-red-500/20 border border-red-500/30';
+            case 'fair': return 'bg-amber-500/20 border border-amber-500/30';
+            default: return 'bg-slate-700/50 border border-slate-600';
+          }
+        });
+        
+        const verdictTextClass = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'text-emerald-400';
+            case 'loss': return 'text-red-400';
+            case 'fair': return 'text-amber-400';
+            default: return 'text-slate-400';
+          }
+        });
+        
+        const differenceClass = computed(() => {
+          if (difference.value > 0) return 'text-emerald-400';
+          if (difference.value < 0) return 'text-red-400';
+          return 'text-slate-400';
+        });
+        
+        const differencePrefix = computed(() => {
+          if (difference.value > 0) return '+';
+          if (difference.value < 0) return '-';
+          return '';
+        });
+        
+        const refreshIcons = () => {
+          setTimeout(() => {
+            if (window.lucide) {
+              lucide.createIcons();
+            }
+          }, 50);
+        };
+        
+        onMounted(() => {
+          if (window.FakepixelHub.initFirebase()) {
+            unsubscribeItems = window.FakepixelHub.subscribeToItems((data) => {
+              items.value = data;
+              loading.value = false;
+              refreshIcons();
+            });
+          } else {
+            loading.value = false;
+          }
+          
+          refreshIcons();
+        });
+        
+        onUnmounted(() => {
+          if (unsubscribeItems) unsubscribeItems();
+        });
+        
+        watch([offeringItems, seekingItems, showQuickAddModal], () => {
+          refreshIcons();
+        }, { deep: true });
+        
+        return {
+          items,
+          loading,
+          selectedOfferingItem,
+          offeringQuantity,
+          offeringItems,
+          purseOffering,
+          selectedSeekingItem,
+          seekingQuantity,
+          seekingItems,
+          purseSeeking,
+          offeringTotal,
+          seekingTotal,
+          difference,
+          verdictPercentage,
+          verdict,
+          verdictText,
+          verdictIcon,
+          verdictFillClass,
+          verdictBgClass,
+          verdictTextClass,
+          differenceClass,
+          differencePrefix,
+          showQuickAddModal,
+          quickAddItemData,
+          quickAddQty,
+          getItemData,
+          formatNumber,
+          getDemandClass,
+          getTrendClass,
+          getTrendIcon,
+          addOfferingItem,
+          removeOfferingItem,
+          addSeekingItem,
+          removeSeekingItem,
+          quickAddItem,
+          confirmQuickAdd,
+          clearAll
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
