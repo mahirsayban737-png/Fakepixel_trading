@@ -1,6 +1,6 @@
 /* ========================================
    FAKEPIXEL TRADING HUB - CORE APPLICATION v3.0
-   Firebase Auth (Redirect), Storage, Real-time Database
+   Firebase Auth (Redirect), Storage, Realtime Database
    ======================================== */
 
 // Firebase Configuration
