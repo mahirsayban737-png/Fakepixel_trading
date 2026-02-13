@@ -6,20 +6,27 @@
   <meta name="theme-color" content="#020617">
   <title>Admin Dashboard - Fakepixel Hub</title>
   
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
   
+  <!-- Vue.js 3 -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   
+  <!-- Custom Styles -->
   <link rel="stylesheet" href="style.css">
   
   <script>
@@ -27,7 +34,12 @@
       theme: {
         extend: {
           colors: {
-            dark: { 900: '#020617', 800: '#0f172a', 700: '#1e293b', 600: '#334155' }
+            dark: {
+              900: '#020617',
+              800: '#0f172a',
+              700: '#1e293b',
+              600: '#334155'
+            }
           }
         }
       }
@@ -36,14 +48,6 @@
 </head>
 <body class="bg-dark-900 min-h-screen">
   <div id="app">
-    <!-- Loading -->
-    <div v-if="authLoading" class="fixed inset-0 bg-dark-900 z-50 flex items-center justify-center">
-      <div class="text-center">
-        <div class="spinner mx-auto mb-4"></div>
-        <p class="text-slate-400">Checking permissions...</p>
-      </div>
-    </div>
-    
     <!-- Navbar -->
     <nav class="navbar px-4 py-3">
       <div class="max-w-7xl mx-auto flex items-center justify-between">
@@ -69,52 +73,56 @@
           </a>
         </div>
         
-        <div v-if="user && isAdmin" class="flex items-center gap-2">
-          <img :src="user.photoURL" class="w-8 h-8 rounded-full" @error="handleAvatarError">
-          <span class="text-sm hidden sm:block">{{ user.displayName }}</span>
-          <button @click="handleSignOut" class="btn-secondary text-sm py-1 px-3 ml-2">
-            <i data-lucide="log-out" class="w-4 h-4"></i>
-          </button>
-        </div>
+        <button v-if="isAuthenticated" @click="logout" class="btn-secondary text-sm flex items-center gap-2">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Logout</span>
+        </button>
+        <div v-else class="w-20"></div>
       </div>
     </nav>
     
-    <!-- Access Denied -->
-    <section v-if="!authLoading && !isAdmin" class="py-20 px-4">
+    <!-- Login Screen -->
+    <section v-if="!isAuthenticated" class="py-20 px-4">
       <div class="max-w-md mx-auto">
         <div class="glass-card p-8 text-center">
-          <div class="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
-            <i data-lucide="shield-x" class="w-10 h-10 text-red-400"></i>
+          <div class="w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="shield-check" class="w-10 h-10 text-white"></i>
           </div>
-          <h1 class="text-2xl font-bold mb-2 text-red-400">Access Denied</h1>
-          <p class="text-slate-400 mb-6">You don't have permission to access the admin dashboard.</p>
+          <h1 class="text-2xl font-bold mb-2">Admin Access</h1>
+          <p class="text-slate-400 mb-6">Enter the Master Key to access the admin dashboard</p>
           
-          <div v-if="!user" class="space-y-4">
-            <p class="text-sm text-slate-500">Sign in to check if you have admin access:</p>
-            <button @click="handleGoogleSignIn" class="btn-google w-full justify-center">
-              <svg class="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Sign in with Google
+          <div class="space-y-4">
+            <div class="relative">
+              <input 
+                v-model="masterKey" 
+                :type="showPassword ? 'text' : 'password'" 
+                class="input-field pr-12" 
+                placeholder="Enter Master Key"
+                @keyup.enter="authenticate"
+              >
+              <button @click="showPassword = !showPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                <i :data-lucide="showPassword ? 'eye-off' : 'eye'" class="w-5 h-5"></i>
+              </button>
+            </div>
+            
+            <div v-if="authError" class="text-red-400 text-sm flex items-center gap-2 justify-center">
+              <i data-lucide="alert-circle" class="w-4 h-4"></i>
+              {{ authError }}
+            </div>
+            
+            <button @click="authenticate" class="btn-primary w-full">
+              <span class="flex items-center justify-center gap-2">
+                <i data-lucide="unlock" class="w-5 h-5"></i>
+                Unlock Dashboard
+              </span>
             </button>
-          </div>
-          
-          <div v-else>
-            <p class="text-sm text-slate-500 mb-4">Signed in as: {{ user.email }}</p>
-            <a href="index.html" class="btn-primary inline-flex items-center gap-2">
-              <i data-lucide="arrow-left" class="w-4 h-4"></i>
-              Return to Home
-            </a>
           </div>
         </div>
       </div>
     </section>
     
     <!-- Admin Dashboard -->
-    <section v-else-if="!authLoading && isAdmin" class="py-8 px-4 pb-20">
+    <section v-else class="py-8 px-4 pb-20">
       <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -122,21 +130,14 @@
             <h1 class="text-3xl font-bold mb-1">
               <span class="gradient-text">Admin Dashboard</span>
             </h1>
-            <p class="text-slate-400 flex items-center gap-2">
-              <span v-if="isSuperAdmin" class="text-amber-400 flex items-center gap-1">
-                <i data-lucide="crown" class="w-4 h-4"></i>
-                Super Admin
-              </span>
-              <span v-else class="text-violet-400">Admin</span>
-              • {{ user?.email }}
-            </p>
+            <p class="text-slate-400">Manage items, trades, and market data</p>
           </div>
           
           <div class="flex flex-wrap gap-3">
             <button @click="runCleanup" class="btn-secondary flex items-center gap-2" :disabled="cleaningUp">
               <i data-lucide="trash" class="w-4 h-4" v-if="!cleaningUp"></i>
               <div v-else class="w-4 h-4 border-2 border-slate-400/30 border-t-slate-400 rounded-full animate-spin"></div>
-              <span class="hidden sm:inline">{{ cleaningUp ? 'Cleaning...' : 'Cleanup Old Trades' }}</span>
+              <span class="hidden sm:inline">{{ cleaningUp ? 'Cleaning...' : 'Cleanup Old' }}</span>
             </button>
             <button @click="openAddModal" class="btn-primary flex items-center gap-2">
               <i data-lucide="plus" class="w-5 h-5"></i>
@@ -183,98 +184,40 @@
           <div class="glass-card p-4">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                <i data-lucide="users" class="w-5 h-5 text-amber-400"></i>
+                <i data-lucide="coins" class="w-5 h-5 text-amber-400"></i>
               </div>
               <div>
-                <div class="text-2xl font-bold">{{ adminsList.length + 1 }}</div>
-                <div class="text-sm text-slate-400">Admins</div>
+                <div class="text-2xl font-bold">{{ formatNumber(totalMarketValue) }}</div>
+                <div class="text-sm text-slate-400">Market Value</div>
               </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Admin Management (Super Admin Only) -->
-        <div v-if="isSuperAdmin" class="glass-card p-6 mb-8">
-          <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
-            <i data-lucide="shield-check" class="w-5 h-5 text-amber-400"></i>
-            Admin Management
-            <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full">Super Admin Only</span>
-          </h2>
-          
-          <div class="flex gap-2 mb-4">
-            <input v-model="newAdminEmail" type="email" class="input-field flex-1" placeholder="Enter Gmail address to add as admin...">
-            <button @click="handleAddAdmin" class="btn-primary" :disabled="addingAdmin || !newAdminEmail">
-              <span v-if="addingAdmin" class="flex items-center gap-2">
-                <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              </span>
-              <span v-else class="flex items-center gap-2">
-                <i data-lucide="user-plus" class="w-4 h-4"></i>
-                Add Admin
-              </span>
-            </button>
-          </div>
-          
-          <div v-if="adminError" class="text-red-400 text-sm mb-4 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-4 h-4"></i>
-            {{ adminError }}
-          </div>
-          
-          <div v-if="adminSuccess" class="text-emerald-400 text-sm mb-4 flex items-center gap-2">
-            <i data-lucide="check-circle" class="w-4 h-4"></i>
-            {{ adminSuccess }}
-          </div>
-          
-          <div class="space-y-2">
-            <!-- Super Admin (hardcoded) -->
-            <div class="flex items-center justify-between p-3 bg-dark-700/50 rounded-lg border border-amber-500/30">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
-                  <i data-lucide="crown" class="w-4 h-4 text-amber-400"></i>
-                </div>
-                <div>
-                  <div class="font-medium text-amber-400">mahirsayban737@gmail.com</div>
-                  <div class="text-xs text-slate-500">Super Admin (Owner)</div>
-                </div>
-              </div>
-              <span class="text-xs text-slate-500">Cannot remove</span>
-            </div>
-            
-            <!-- Dynamic Admins -->
-            <div v-for="admin in adminsList" :key="admin.id" class="flex items-center justify-between p-3 bg-dark-700/50 rounded-lg">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center">
-                  <i data-lucide="user" class="w-4 h-4 text-violet-400"></i>
-                </div>
-                <div>
-                  <div class="font-medium">{{ admin.email }}</div>
-                  <div class="text-xs text-slate-500">Added by {{ admin.addedBy }}</div>
-                </div>
-              </div>
-              <button @click="handleRemoveAdmin(admin.id)" class="text-red-400 hover:text-red-300 p-2">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
             </div>
           </div>
         </div>
         
         <!-- Items Table -->
         <div class="glass-card overflow-hidden mb-8">
-          <div class="p-4 border-b border-dark-600 flex items-center justify-between">
+          <div class="p-4 border-b border-dark-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h2 class="text-lg font-bold flex items-center gap-2">
               <i data-lucide="database" class="w-5 h-5 text-violet-400"></i>
-              Item Database ({{ items.length }})
+              Item Database
             </h2>
+            <div class="flex items-center gap-2">
+              <input v-model="searchQuery" type="text" class="input-field py-2 text-sm w-full sm:w-auto" placeholder="Search items...">
+            </div>
           </div>
           
+          <!-- Loading -->
           <div v-if="loading" class="flex justify-center py-12">
             <div class="spinner"></div>
           </div>
           
-          <div v-else-if="items.length === 0" class="text-center py-12">
+          <!-- Empty State -->
+          <div v-else-if="filteredItems.length === 0" class="text-center py-12">
             <i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 text-slate-600"></i>
-            <p class="text-slate-400">No items in database</p>
+            <p class="text-slate-400">No items found</p>
           </div>
           
+          <!-- Table -->
           <div v-else class="overflow-x-auto">
             <table class="w-full">
               <thead class="bg-dark-700/50">
@@ -287,7 +230,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in items" :key="item.id" class="border-t border-dark-700 hover:bg-dark-700/30 transition-colors">
+                <tr v-for="item in filteredItems" :key="item.id" class="border-t border-dark-700 hover:bg-dark-700/30 transition-colors">
                   <td class="px-4 py-3">
                     <div class="flex items-center gap-3">
                       <img v-if="item.imageUrl" :src="item.imageUrl" class="w-10 h-10 rounded-lg object-cover" :alt="item.name" style="image-rendering: pixelated;" @error="handleImageError">
@@ -346,14 +289,16 @@
           <div v-else class="divide-y divide-dark-700 max-h-96 overflow-y-auto">
             <div v-for="trade in trades" :key="trade.id" class="p-4 flex items-center justify-between hover:bg-dark-700/30 transition-colors">
               <div class="flex items-center gap-3 min-w-0 flex-1">
-                <img :src="trade.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(trade.username || 'User')" class="w-10 h-10 rounded-full object-cover flex-shrink-0" @error="handleAvatarError">
+                <img :src="trade.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(trade.username || 'User')" 
+                     class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                     @error="handleAvatarError">
                 <div class="min-w-0 flex-1">
-                  <div class="font-medium truncate text-violet-300">{{ trade.username || 'Anonymous' }}</div>
-                  <div class="text-sm text-slate-400 truncate">{{ trade.description || 'No description' }}</div>
+                  <div class="font-medium truncate">{{ trade.username || 'Anonymous' }}</div>
+                  <div class="text-sm text-slate-400 truncate">{{ trade.description }}</div>
                   <div class="text-xs text-slate-500 flex flex-wrap items-center gap-2 mt-1">
-                    <span>{{ trade.offering?.length || 0 }} giving</span>
+                    <span>{{ trade.offering?.length || 0 }} offering</span>
                     <span>•</span>
-                    <span>{{ trade.seeking?.length || 0 }} wanting</span>
+                    <span>{{ trade.seeking?.length || 0 }} seeking</span>
                     <span>•</span>
                     <span :class="{ 'text-red-400': isExpiringSoon(trade.timestamp) }">
                       {{ getDaysUntilExpiry(trade.timestamp) }}d left
@@ -373,10 +318,10 @@
       </div>
     </section>
     
-    <!-- Add/Edit Item Modal -->
+    <!-- Add/Edit Modal -->
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content glass-modal max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6 sticky top-0 bg-dark-800/95 backdrop-blur py-2 -mt-2 z-10">
+      <div class="modal-content max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6 sticky top-0 bg-dark-800 py-2 -mt-2 z-10">
           <h3 class="text-xl font-bold">{{ editingItem ? 'Edit Item' : 'Add New Item' }}</h3>
           <button @click="closeModal" class="text-slate-400 hover:text-white">
             <i data-lucide="x" class="w-6 h-6"></i>
@@ -384,19 +329,26 @@
         </div>
         
         <div class="space-y-4">
-          <!-- Minecraft Icon Picker -->
+          <!-- Minecraft Icon Search -->
           <div>
             <label class="block text-sm text-slate-400 mb-2">
               <i data-lucide="search" class="w-4 h-4 inline mr-1"></i>
               Search Minecraft Icons
             </label>
-            <input v-model="mcIconSearch" type="text" class="input-field" placeholder="Type to search (diamond, sword, netherite...)">
+            <input v-model="mcIconSearch" type="text" class="input-field" placeholder="Type to search (e.g., diamond, sword, netherite)...">
             
-            <div v-if="filteredMcIcons.length" class="mc-icon-grid mt-3">
-              <div v-for="icon in filteredMcIcons.slice(0, 20)" :key="icon.name" @click="selectMcIcon(icon)" :class="{ selected: selectedMcIcon?.name === icon.name }" class="mc-icon-item">
+            <!-- Icon Grid -->
+            <div v-if="mcIconSearch && filteredMcIcons.length" class="mc-icon-grid mt-3">
+              <div v-for="icon in filteredMcIcons.slice(0, 24)" :key="icon.name" 
+                   @click="selectMcIcon(icon)"
+                   :class="{ selected: selectedMcIcon?.name === icon.name }"
+                   class="mc-icon-item">
                 <img :src="icon.url" :alt="icon.displayName" @error="handleImageError">
                 <span>{{ icon.displayName }}</span>
               </div>
+            </div>
+            <div v-else-if="mcIconSearch && !filteredMcIcons.length" class="text-center py-4 text-slate-500 text-sm bg-dark-700 rounded-lg mt-3">
+              No icons found for "{{ mcIconSearch }}"
             </div>
           </div>
           
@@ -407,7 +359,7 @@
             </div>
             
             <div>
-              <label class="block text-sm text-slate-400 mb-2">Value (Purse) *</label>
+              <label class="block text-sm text-slate-400 mb-2">Value (Coins) *</label>
               <input v-model.number="formData.value" type="number" class="input-field" placeholder="e.g., 50000">
             </div>
           </div>
@@ -432,40 +384,40 @@
             </div>
           </div>
           
-          <!-- Image Upload Section - FIXED -->
+          <!-- Image Section -->
           <div>
             <label class="block text-sm text-slate-400 mb-2">Item Image</label>
             
             <div class="grid sm:grid-cols-2 gap-4">
               <!-- URL Input -->
               <div>
-                <input v-model="formData.imageUrl" type="url" class="input-field mb-2" placeholder="Image URL (optional)">
-                <div class="text-xs text-slate-500">Paste direct image URL</div>
+                <input v-model="formData.imageUrl" type="url" class="input-field mb-2" placeholder="Image URL (PNG)">
+                <div class="text-xs text-slate-500">Paste a direct image URL</div>
               </div>
               
-              <!-- File Upload Button - FIXED FOR S24 FE -->
-              <div class="relative">
-                <input 
-                  ref="fileInput" 
-                  type="file" 
-                  accept="image/png,image/jpeg,image/gif,image/webp"
-                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  @change="handleFileUpload"
-                >
-                <div class="upload-area" :class="{ 'border-violet-500 bg-violet-500/10': uploading }">
-                  <div v-if="uploading" class="flex items-center justify-center gap-2">
-                    <div class="spinner w-5 h-5"></div>
-                    <span class="text-sm">Uploading...</span>
-                  </div>
-                  <div v-else class="text-center">
-                    <i data-lucide="image-plus" class="w-8 h-8 mx-auto mb-2 text-violet-400"></i>
-                    <div class="text-sm text-violet-400 font-medium">Choose Image</div>
-                    <div class="text-xs text-slate-500">PNG, JPG up to 5MB</div>
-                  </div>
+              <!-- File Upload -->
+              <div 
+                class="upload-area"
+                @dragover.prevent="dragover = true"
+                @dragleave="dragover = false"
+                @drop.prevent="handleFileDrop"
+                :class="{ dragover: dragover }"
+                @click="triggerFileInput"
+              >
+                <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden" @change="handleFileSelect">
+                <div v-if="uploading" class="flex items-center justify-center gap-2">
+                  <div class="spinner w-5 h-5"></div>
+                  <span class="text-sm">Uploading...</span>
+                </div>
+                <div v-else class="text-center">
+                  <i data-lucide="upload-cloud" class="w-8 h-8 mx-auto mb-2 text-slate-400"></i>
+                  <div class="text-sm text-slate-400">Upload from Device</div>
+                  <div class="text-xs text-slate-500">PNG, JPG up to 5MB</div>
                 </div>
               </div>
             </div>
             
+            <!-- Upload Error -->
             <div v-if="uploadError" class="text-red-400 text-sm mt-2 flex items-center gap-2">
               <i data-lucide="alert-circle" class="w-4 h-4"></i>
               {{ uploadError }}
@@ -476,7 +428,7 @@
               <img :src="formData.imageUrl" class="w-16 h-16 rounded-lg object-cover border border-dark-600" style="image-rendering: pixelated;" @error="handlePreviewError">
               <div class="flex-1 min-w-0">
                 <div class="text-sm font-medium truncate">Image Preview</div>
-                <div class="text-xs text-slate-500 truncate">{{ formData.imageUrl.substring(0, 50) }}...</div>
+                <div class="text-xs text-slate-500 truncate">{{ formData.imageUrl }}</div>
               </div>
               <button @click="formData.imageUrl = ''" class="text-red-400 hover:text-red-300 p-2 hover:bg-dark-600 rounded-lg">
                 <i data-lucide="x" class="w-5 h-5"></i>
@@ -505,14 +457,15 @@
     
     <!-- Delete Confirmation Modal -->
     <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
-      <div class="modal-content glass-modal">
+      <div class="modal-content">
         <div class="text-center">
           <div class="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
             <i data-lucide="alert-triangle" class="w-8 h-8 text-red-400"></i>
           </div>
           <h3 class="text-xl font-bold mb-2">Delete Item?</h3>
           <p class="text-slate-400 mb-6">
-            Are you sure you want to delete <span class="text-white font-semibold">{{ itemToDelete?.name }}</span>?
+            Are you sure you want to delete <span class="text-white font-semibold">{{ itemToDelete?.name }}</span>? 
+            This action cannot be undone.
           </p>
           <div class="flex gap-3">
             <button @click="showDeleteModal = false" class="btn-secondary flex-1">Cancel</button>
@@ -522,8 +475,8 @@
       </div>
     </div>
     
-    <!-- Toast Notification -->
-    <div v-if="cleanupResult !== null" class="fixed bottom-4 right-4 glass-card px-4 py-3 flex items-center gap-3 animate-slideInUp z-50">
+    <!-- Cleanup Result Toast -->
+    <div v-if="cleanupResult" class="fixed bottom-4 right-4 glass-card px-4 py-3 flex items-center gap-3 animate-slideInUp z-50">
       <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
       <span>Removed {{ cleanupResult }} expired trades</span>
       <button @click="cleanupResult = null" class="text-slate-400 hover:text-white">
@@ -539,15 +492,15 @@
     
     createApp({
       setup() {
-        const user = ref(null);
-        const authLoading = ref(true);
-        const isAdmin = ref(false);
-        const isSuperAdmin = ref(false);
+        const isAuthenticated = ref(false);
+        const masterKey = ref('');
+        const showPassword = ref(false);
+        const authError = ref('');
         
         const items = ref([]);
         const trades = ref([]);
-        const adminsList = ref([]);
         const loading = ref(true);
+        const searchQuery = ref('');
         
         const showModal = ref(false);
         const showDeleteModal = ref(false);
@@ -556,18 +509,17 @@
         const saving = ref(false);
         const formError = ref('');
         
-        const newAdminEmail = ref('');
-        const addingAdmin = ref(false);
-        const adminError = ref('');
-        const adminSuccess = ref('');
-        
+        // Minecraft Icon Search
         const mcIconSearch = ref('');
         const selectedMcIcon = ref(null);
         
+        // File Upload
         const fileInput = ref(null);
+        const dragover = ref(false);
         const uploading = ref(false);
         const uploadError = ref('');
         
+        // Cleanup
         const cleaningUp = ref(false);
         const cleanupResult = ref(null);
         
@@ -581,15 +533,26 @@
         
         let unsubscribeItems = null;
         let unsubscribeTrades = null;
-        let unsubscribeAuth = null;
-        let unsubscribeAdmins = null;
+        
+        const filteredItems = computed(() => {
+          if (!searchQuery.value) return items.value;
+          const query = searchQuery.value.toLowerCase();
+          return items.value.filter(item => 
+            item.name?.toLowerCase().includes(query)
+          );
+        });
         
         const filteredMcIcons = computed(() => {
+          if (!mcIconSearch.value) return [];
           return window.FakepixelHub.searchMinecraftIcons(mcIconSearch.value);
         });
         
         const highDemandCount = computed(() => {
           return items.value.filter(i => i.demand?.toLowerCase() === 'high').length;
+        });
+        
+        const totalMarketValue = computed(() => {
+          return items.value.reduce((sum, item) => sum + (item.value || 0), 0);
         });
         
         const formatNumber = (num) => window.FakepixelHub.formatNumber(num);
@@ -603,16 +566,21 @@
         const getTrendIcon = (trend) => getTrendInfo(trend).icon;
         const getTrendText = (trend) => getTrendInfo(trend).text;
         
-        const handleGoogleSignIn = async () => {
-          authLoading.value = true;
-          await window.FakepixelHub.signInWithGoogle();
+        const authenticate = () => {
+          authError.value = '';
+          if (window.FakepixelHub.validateMasterKey(masterKey.value)) {
+            isAuthenticated.value = true;
+            window.FakepixelHub.setAdminAuth(true);
+            masterKey.value = '';
+            refreshIcons();
+          } else {
+            authError.value = 'Invalid Master Key. Access denied.';
+          }
         };
         
-        const handleSignOut = async () => {
-          await window.FakepixelHub.signOut();
-          user.value = null;
-          isAdmin.value = false;
-          isSuperAdmin.value = false;
+        const logout = () => {
+          isAuthenticated.value = false;
+          window.FakepixelHub.clearAdminAuth();
         };
         
         const selectMcIcon = (icon) => {
@@ -623,11 +591,26 @@
           refreshIcons();
         };
         
-        // FIXED File Upload Handler
-        const handleFileUpload = async (event) => {
+        const triggerFileInput = () => {
+          if (fileInput.value) {
+            fileInput.value.click();
+          }
+        };
+        
+        const handleFileSelect = async (event) => {
           const file = event.target.files[0];
-          if (!file) return;
-          
+          if (file) await uploadFile(file);
+          // Reset input
+          if (fileInput.value) fileInput.value.value = '';
+        };
+        
+        const handleFileDrop = async (event) => {
+          dragover.value = false;
+          const file = event.dataTransfer.files[0];
+          if (file) await uploadFile(file);
+        };
+        
+        const uploadFile = async (file) => {
           uploading.value = true;
           uploadError.value = '';
           
@@ -640,25 +623,33 @@
           }
           
           uploading.value = false;
-          
-          // Reset file input
-          if (fileInput.value) {
-            fileInput.value.value = '';
-          }
-          
           refreshIcons();
         };
         
-        const handleImageError = (e) => { e.target.src = 'https://via.placeholder.com/40?text=?'; };
-        const handleAvatarError = (e) => { e.target.src = 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff'; };
-        const handlePreviewError = (e) => { e.target.src = 'https://via.placeholder.com/64?text=Error'; };
+        const handleImageError = (e) => {
+          e.target.src = 'https://via.placeholder.com/40?text=?';
+        };
+        
+        const handleAvatarError = (e) => {
+          e.target.src = 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff';
+        };
+        
+        const handlePreviewError = (e) => {
+          e.target.src = 'https://via.placeholder.com/64?text=Error';
+        };
         
         const openAddModal = () => {
           editingItem.value = null;
           selectedMcIcon.value = null;
           mcIconSearch.value = '';
           uploadError.value = '';
-          formData.value = { name: '', value: 0, demand: 'Medium', trend: 'stable', imageUrl: '' };
+          formData.value = {
+            name: '',
+            value: 0,
+            demand: 'Medium',
+            trend: 'stable',
+            imageUrl: ''
+          };
           formError.value = '';
           showModal.value = true;
           refreshIcons();
@@ -743,30 +734,6 @@
           }
         };
         
-        const handleAddAdmin = async () => {
-          adminError.value = '';
-          adminSuccess.value = '';
-          addingAdmin.value = true;
-          
-          const result = await window.FakepixelHub.addAdmin(newAdminEmail.value, user.value?.email);
-          
-          if (result.success) {
-            adminSuccess.value = `${newAdminEmail.value} has been added as admin.`;
-            newAdminEmail.value = '';
-            setTimeout(() => adminSuccess.value = '', 3000);
-          } else {
-            adminError.value = result.error;
-          }
-          
-          addingAdmin.value = false;
-        };
-        
-        const handleRemoveAdmin = async (adminId) => {
-          if (confirm('Remove this admin?')) {
-            await window.FakepixelHub.removeAdmin(adminId);
-          }
-        };
-        
         const runCleanup = async () => {
           cleaningUp.value = true;
           const result = await window.FakepixelHub.manualCleanup();
@@ -774,36 +741,24 @@
           
           if (result.success) {
             cleanupResult.value = result.count;
-            setTimeout(() => { cleanupResult.value = null; }, 3000);
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+              cleanupResult.value = null;
+            }, 3000);
           }
           refreshIcons();
         };
         
-        const refreshIcons = () => { setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50); };
+        const refreshIcons = () => {
+          setTimeout(() => {
+            if (window.lucide) lucide.createIcons();
+          }, 50);
+        };
         
-        onMounted(async () => {
+        onMounted(() => {
+          isAuthenticated.value = window.FakepixelHub.checkAdminAuth();
+          
           if (window.FakepixelHub.initFirebase()) {
-            // Step 1: Handle redirect result FIRST (critical for mobile)
-            await window.FakepixelHub.handleRedirectResult();
-            
-            // Step 2: Set up auth state listener
-            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
-              console.log('[Admin] Auth state changed:', userData?.email || 'logged out');
-              
-              user.value = userData;
-              
-              if (userData) {
-                isSuperAdmin.value = window.FakepixelHub.isSuperAdmin(userData.email);
-                isAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
-              } else {
-                isAdmin.value = false;
-                isSuperAdmin.value = false;
-              }
-              
-              authLoading.value = false;
-              refreshIcons();
-            });
-            
             unsubscribeItems = window.FakepixelHub.subscribeToItems((data) => {
               items.value = data;
               loading.value = false;
@@ -814,14 +769,8 @@
               trades.value = data;
               refreshIcons();
             });
-            
-            unsubscribeAdmins = window.FakepixelHub.subscribeToAdmins((data) => {
-              adminsList.value = data;
-              refreshIcons();
-            });
           } else {
             loading.value = false;
-            authLoading.value = false;
           }
           
           refreshIcons();
@@ -830,24 +779,63 @@
         onUnmounted(() => {
           if (unsubscribeItems) unsubscribeItems();
           if (unsubscribeTrades) unsubscribeTrades();
-          if (unsubscribeAuth) unsubscribeAuth();
-          if (unsubscribeAdmins) unsubscribeAdmins();
         });
         
-        watch([showModal, showDeleteModal, isAdmin], refreshIcons);
+        watch([showModal, showDeleteModal, isAuthenticated], refreshIcons);
         
         return {
-          user, authLoading, isAdmin, isSuperAdmin, items, trades, adminsList, loading,
-          showModal, showDeleteModal, editingItem, itemToDelete, formData, formError, saving,
-          newAdminEmail, addingAdmin, adminError, adminSuccess,
-          mcIconSearch, selectedMcIcon, filteredMcIcons,
-          fileInput, uploading, uploadError, cleaningUp, cleanupResult, highDemandCount,
-          formatNumber, formatTime, getDaysUntilExpiry, isExpiringSoon, getDemandClass,
-          getTrendClass, getTrendIcon, getTrendText,
-          handleGoogleSignIn, handleSignOut, selectMcIcon, handleFileUpload,
-          handleImageError, handleAvatarError, handlePreviewError,
-          openAddModal, openEditModal, closeModal, saveItem, confirmDelete, deleteItem, deleteTrade,
-          handleAddAdmin, handleRemoveAdmin, runCleanup
+          isAuthenticated,
+          masterKey,
+          showPassword,
+          authError,
+          items,
+          trades,
+          loading,
+          searchQuery,
+          filteredItems,
+          highDemandCount,
+          totalMarketValue,
+          showModal,
+          showDeleteModal,
+          editingItem,
+          itemToDelete,
+          formData,
+          formError,
+          saving,
+          mcIconSearch,
+          selectedMcIcon,
+          filteredMcIcons,
+          fileInput,
+          dragover,
+          uploading,
+          uploadError,
+          cleaningUp,
+          cleanupResult,
+          formatNumber,
+          formatTime,
+          getDaysUntilExpiry,
+          isExpiringSoon,
+          getDemandClass,
+          getTrendClass,
+          getTrendIcon,
+          getTrendText,
+          authenticate,
+          logout,
+          selectMcIcon,
+          triggerFileInput,
+          handleFileSelect,
+          handleFileDrop,
+          handleImageError,
+          handleAvatarError,
+          handlePreviewError,
+          openAddModal,
+          openEditModal,
+          closeModal,
+          saveItem,
+          confirmDelete,
+          deleteItem,
+          deleteTrade,
+          runCleanup
         };
       }
     }).mount('#app');

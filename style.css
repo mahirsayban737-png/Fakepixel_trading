@@ -1,7 +1,6 @@
 /* ========================================
-   FAKEPIXEL TRADING HUB v4.0 - PREMIUM STYLES
+   FAKEPIXEL TRADING HUB v2.0 - PREMIUM STYLES
    Ultra-professional Dark Slate Theme
-   Glass-morphism Enhanced
    ======================================== */
 
 /* Theme Variables */
@@ -11,9 +10,7 @@
   --bg-tertiary: #1e293b;
   --bg-quaternary: #334155;
   --glass-bg: rgba(15, 23, 42, 0.8);
-  --glass-bg-strong: rgba(15, 23, 42, 0.95);
   --glass-border: rgba(148, 163, 184, 0.1);
-  --glass-border-light: rgba(148, 163, 184, 0.2);
   --accent-primary: #8b5cf6;
   --accent-secondary: #06b6d4;
   --accent-success: #10b981;
@@ -72,26 +69,6 @@ html {
   border-color: rgba(139, 92, 246, 0.3);
   transform: translateY(-2px);
   box-shadow: 0 25px 50px -12px rgba(139, 92, 246, 0.15);
-}
-
-/* Glass Inner - For nested glass elements */
-.glass-inner {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(51, 65, 85, 0.4) 100%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-}
-
-/* Glass Modal - Enhanced for profile/trade modals */
-.glass-modal {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid var(--glass-border-light);
-  box-shadow: 
-    0 25px 50px -12px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(139, 92, 246, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Navbar Styles */
@@ -393,7 +370,7 @@ html {
 }
 
 /* ========================================
-   MULTI-ITEM TRADE CARDS (v4.0)
+   MULTI-ITEM TRADE CARDS (v2.0)
    ======================================== */
 
 .multi-item-container {
@@ -458,7 +435,7 @@ html {
   font-weight: 600;
 }
 
-/* Purse Display - Renamed from Coins */
+/* Purse Display */
 .purse-badge {
   display: inline-flex;
   align-items: center;
@@ -567,11 +544,6 @@ html {
   text-align: center;
   transition: all 0.3s ease;
   cursor: pointer;
-  min-height: 100px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
 }
 
 .upload-area:hover {
@@ -629,11 +601,6 @@ html {
 .filter-tab.active {
   background: var(--accent-primary);
   color: white;
-}
-
-.filter-tab:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Scrollbar Styling */
@@ -734,15 +701,10 @@ html {
   to { transform: rotate(360deg); }
 }
 
-.animate-slideInUp {
-  animation: slideInUp 0.3s ease-out;
-}
-
-/* Auth Loading Animation */
-@keyframes fadeInUp {
+@keyframes slideInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -750,8 +712,8 @@ html {
   }
 }
 
-.fade-in-up {
-  animation: fadeInUp 0.3s ease-out;
+.animate-slideInUp {
+  animation: slideInUp 0.3s ease-out;
 }
 
 /* Gradient Text */
@@ -862,22 +824,4 @@ html {
 
 .qty-adjuster input:focus {
   outline: none;
-}
-
-/* Line Clamp */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Profile Username Highlight */
-.text-violet-300 {
-  color: #c4b5fd;
-}
-
-/* Admin Crown Icon Color */
-.text-amber-400 {
-  color: #fbbf24;
 }
