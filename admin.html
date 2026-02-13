@@ -783,22 +783,33 @@
         
         onMounted(async () => {
           if (window.FakepixelHub.initFirebase()) {
-            // CRITICAL: Handle auth callback FIRST
-            await window.FakepixelHub.handleAuthCallback();
+            // CRITICAL: Initialize auth and wait for redirect result FIRST
+            console.log('[Admin] Starting auth initialization...');
+            const initialUser = await window.FakepixelHub.initializeAuth();
+            console.log('[Admin] Initial user:', initialUser?.email || 'none');
             
-            // Auth state listener
+            if (initialUser) {
+              user.value = initialUser;
+              isSuperAdmin.value = window.FakepixelHub.isSuperAdmin(initialUser.email);
+              isAdmin.value = await window.FakepixelHub.isAdmin(initialUser.email);
+            }
+            
+            authLoading.value = false;
+            
+            // Auth state listener for future changes
             unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
-              user.value = userData;
-              
-              if (userData) {
-                isSuperAdmin.value = window.FakepixelHub.isSuperAdmin(userData.email);
-                isAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
-              } else {
-                isAdmin.value = false;
-                isSuperAdmin.value = false;
+              if (userData?.uid !== user.value?.uid) {
+                user.value = userData;
+                
+                if (userData) {
+                  isSuperAdmin.value = window.FakepixelHub.isSuperAdmin(userData.email);
+                  isAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
+                } else {
+                  isAdmin.value = false;
+                  isSuperAdmin.value = false;
+                }
               }
               
-              authLoading.value = false;
               refreshIcons();
             });
             

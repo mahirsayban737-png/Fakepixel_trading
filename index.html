@@ -732,45 +732,79 @@
         
         onMounted(async () => {
           if (window.FakepixelHub.initFirebase()) {
-            authMessage.value = 'Checking login...';
+            // Check if we're expecting a redirect result
+            const isPending = window.FakepixelHub.isPendingAuth();
             
-            // CRITICAL: Handle auth callback FIRST (for redirect flow)
-            const callbackResult = await window.FakepixelHub.handleAuthCallback();
-            
-            if (callbackResult) {
-              authMessage.value = 'Loading profile...';
+            if (isPending) {
+              authMessage.value = 'Completing sign in...';
+            } else {
+              authMessage.value = 'Checking login status...';
             }
             
-            // Auth state listener (secondary to callback)
-            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
-              user.value = userData;
-              authLoading.value = false;
+            // CRITICAL: Initialize auth and wait for redirect result FIRST
+            console.log('[App] Starting auth initialization...');
+            const initialUser = await window.FakepixelHub.initializeAuth();
+            console.log('[App] Initial user:', initialUser?.email || 'none');
+            
+            if (initialUser) {
+              user.value = initialUser;
+              authMessage.value = 'Loading your profile...';
+              await updateUserTradeCount();
               
-              if (userData) {
-                await updateUserTradeCount();
+              // Subscribe to profile changes
+              unsubscribeProfile = window.FakepixelHub.subscribeToUserProfile(initialUser.uid, (profile) => {
+                userProfile.value = profile;
                 
-                // Subscribe to profile changes
-                unsubscribeProfile = window.FakepixelHub.subscribeToUserProfile(userData.uid, (profile) => {
-                  userProfile.value = profile;
+                // Show mandatory profile if no fakepixelName
+                if (!profile?.fakepixelName) {
+                  showMandatoryProfile.value = true;
+                } else {
+                  showMandatoryProfile.value = false;
+                  profileUsername.value = profile.fakepixelName;
+                }
+                refreshIcons();
+              });
+              
+              // Check admin status
+              unsubscribeAdminStatus = window.FakepixelHub.subscribeToAdminStatus(initialUser.email, (isAdmin) => {
+                isUserAdmin.value = isAdmin;
+                refreshIcons();
+              });
+            }
+            
+            authLoading.value = false;
+            
+            // NOW set up the auth state listener for future changes (logout, etc.)
+            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
+              // Only process if different from current state
+              if (userData?.uid !== user.value?.uid) {
+                user.value = userData;
+                
+                if (userData) {
+                  await updateUserTradeCount();
                   
-                  // Show mandatory profile if no fakepixelName
-                  if (!profile?.fakepixelName) {
-                    showMandatoryProfile.value = true;
-                  } else {
-                    showMandatoryProfile.value = false;
-                    profileUsername.value = profile.fakepixelName;
-                  }
-                });
-                
-                // Check admin status
-                unsubscribeAdminStatus = window.FakepixelHub.subscribeToAdminStatus(userData.email, (isAdmin) => {
-                  isUserAdmin.value = isAdmin;
-                  refreshIcons();
-                });
-              } else {
-                userProfile.value = null;
-                isUserAdmin.value = false;
-                showMandatoryProfile.value = false;
+                  if (unsubscribeProfile) unsubscribeProfile();
+                  unsubscribeProfile = window.FakepixelHub.subscribeToUserProfile(userData.uid, (profile) => {
+                    userProfile.value = profile;
+                    if (!profile?.fakepixelName) {
+                      showMandatoryProfile.value = true;
+                    } else {
+                      showMandatoryProfile.value = false;
+                      profileUsername.value = profile.fakepixelName;
+                    }
+                    refreshIcons();
+                  });
+                  
+                  if (unsubscribeAdminStatus) unsubscribeAdminStatus();
+                  unsubscribeAdminStatus = window.FakepixelHub.subscribeToAdminStatus(userData.email, (isAdmin) => {
+                    isUserAdmin.value = isAdmin;
+                    refreshIcons();
+                  });
+                } else {
+                  userProfile.value = null;
+                  isUserAdmin.value = false;
+                  showMandatoryProfile.value = false;
+                }
               }
               
               refreshIcons();

@@ -1,6 +1,6 @@
 /* ========================================
-   FAKEPIXEL TRADING HUB - CORE APPLICATION v4.3
-   Firebase Auth (RESCUED REDIRECT FLOW), Storage, Real-time Database
+   FAKEPIXEL TRADING HUB - CORE APPLICATION v4.4
+   Firebase Auth (BULLETPROOF REDIRECT FLOW), Storage, Real-time Database
    Profile System, Multi-Admin, Advanced Trading
    ======================================== */
 
@@ -26,8 +26,8 @@ let app, database, auth, storage;
 
 // AUTH STATE TRACKING - Critical for mobile
 let authInitialized = false;
-let redirectChecked = false;
-let currentUserData = null;
+let redirectResultProcessed = false;
+let pendingRedirectUser = null;
 
 function initFirebase() {
   if (typeof firebase !== 'undefined') {
@@ -40,6 +40,9 @@ function initFirebase() {
     auth = firebase.auth();
     storage = firebase.storage();
     
+    // CRITICAL: Set persistence immediately after init
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
+    
     // Run auto cleanup on init
     cleanupExpiredTrades();
     
@@ -49,13 +52,13 @@ function initFirebase() {
 }
 
 // ========================================
-// RESCUED AUTH FLOW - MOBILE FIX
+// BULLETPROOF AUTH FLOW - MOBILE FIX v4.4
 // ========================================
 
-// Step 1: Set persistence and sign in with redirect
+// Step 1: Sign in with redirect
 async function signInWithGoogle() {
   try {
-    // CRITICAL: Set LOCAL persistence FIRST for mobile
+    // Set LOCAL persistence
     await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     
     const provider = new firebase.auth.GoogleAuthProvider();
@@ -66,34 +69,41 @@ async function signInWithGoogle() {
     provider.addScope('profile');
     provider.addScope('email');
     
+    // Store a flag in sessionStorage to know we're expecting a redirect
+    sessionStorage.setItem('pendingAuth', 'true');
+    
     // Use redirect for mobile compatibility
-    return auth.signInWithRedirect(provider);
+    await auth.signInWithRedirect(provider);
   } catch (error) {
     console.error('Sign-in error:', error);
-    return { success: false, error: error.message };
+    sessionStorage.removeItem('pendingAuth');
+    throw error;
   }
 }
 
-// Step 2: Handle auth callback - MUST RUN IMMEDIATELY ON PAGE LOAD
-async function handleAuthCallback() {
-  if (redirectChecked) {
-    return currentUserData;
+// Step 2: Check redirect result - MUST BE CALLED FIRST ON PAGE LOAD
+async function checkRedirectResult() {
+  if (redirectResultProcessed) {
+    return pendingRedirectUser;
   }
   
   try {
-    // Set persistence first
-    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    console.log('[Auth] Checking redirect result...');
     
-    // Check for redirect result
+    // Get the redirect result
     const result = await auth.getRedirectResult();
-    redirectChecked = true;
+    redirectResultProcessed = true;
+    sessionStorage.removeItem('pendingAuth');
     
     if (result && result.user) {
-      console.log('Redirect login successful:', result.user.email);
+      console.log('[Auth] Redirect SUCCESS:', result.user.email);
+      
+      pendingRedirectUser = result.user;
       
       // Create profile if new user
       const existingProfile = await getUserProfile(result.user.uid);
       if (!existingProfile) {
+        console.log('[Auth] Creating new profile...');
         await saveUserProfile(result.user.uid, {
           email: result.user.email,
           googleName: result.user.displayName,
@@ -102,48 +112,79 @@ async function handleAuthCallback() {
         });
       }
       
-      currentUserData = {
-        uid: result.user.uid,
-        displayName: result.user.displayName,
-        email: result.user.email,
-        photoURL: result.user.photoURL,
-        isNewUser: !existingProfile
-      };
-      
-      return currentUserData;
+      return result.user;
+    } else {
+      console.log('[Auth] No redirect result');
+      return null;
     }
-    
-    // No redirect result, check current auth state
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      currentUserData = {
-        uid: currentUser.uid,
-        displayName: currentUser.displayName,
-        email: currentUser.email,
-        photoURL: currentUser.photoURL,
-        isNewUser: false
-      };
-      return currentUserData;
-    }
-    
-    return null;
   } catch (error) {
-    console.error('Auth callback error:', error);
-    redirectChecked = true;
+    console.error('[Auth] Redirect error:', error);
+    redirectResultProcessed = true;
+    sessionStorage.removeItem('pendingAuth');
     return null;
   }
 }
 
-// Step 3: Subscribe to auth changes (SECONDARY to redirect check)
+// Step 3: Initialize auth and return user state
+async function initializeAuth() {
+  return new Promise(async (resolve) => {
+    // First, check redirect result
+    const redirectUser = await checkRedirectResult();
+    
+    if (redirectUser) {
+      // User came from redirect, resolve with that user
+      const fakepixelName = await getFakepixelUsername(redirectUser.uid);
+      const profile = await getUserProfile(redirectUser.uid);
+      
+      resolve({
+        uid: redirectUser.uid,
+        displayName: redirectUser.displayName,
+        email: redirectUser.email,
+        photoURL: redirectUser.photoURL,
+        fakepixelName: fakepixelName,
+        needsProfile: !fakepixelName,
+        profile: profile
+      });
+      return;
+    }
+    
+    // No redirect user, check current auth state
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const fakepixelName = await getFakepixelUsername(currentUser.uid);
+      const profile = await getUserProfile(currentUser.uid);
+      
+      resolve({
+        uid: currentUser.uid,
+        displayName: currentUser.displayName,
+        email: currentUser.email,
+        photoURL: currentUser.photoURL,
+        fakepixelName: fakepixelName,
+        needsProfile: !fakepixelName,
+        profile: profile
+      });
+      return;
+    }
+    
+    // No user at all
+    resolve(null);
+  });
+}
+
+// Step 4: Subscribe to auth changes (for logout/login after initial load)
 function onAuthStateChanged(callback) {
+  let initialCallDone = false;
+  
   return auth.onAuthStateChanged(async (user) => {
-    // Wait for redirect check if not done
-    if (!redirectChecked) {
-      await handleAuthCallback();
+    // Skip the first call if we haven't processed redirect yet
+    if (!redirectResultProcessed && !initialCallDone) {
+      initialCallDone = true;
+      // Wait for redirect result first
+      const redirectUser = await checkRedirectResult();
+      user = redirectUser || user;
     }
     
     if (user) {
-      // Get additional profile data
       const fakepixelName = await getFakepixelUsername(user.uid);
       const profile = await getUserProfile(user.uid);
       
@@ -157,10 +198,8 @@ function onAuthStateChanged(callback) {
         profile: profile
       };
       
-      currentUserData = userData;
       callback(userData);
     } else {
-      currentUserData = null;
       callback(null);
     }
     
@@ -172,8 +211,7 @@ function onAuthStateChanged(callback) {
 async function signOut() {
   try {
     await auth.signOut();
-    currentUserData = null;
-    redirectChecked = false;
+    pendingRedirectUser = null;
     return { success: true };
   } catch (error) {
     console.error('Sign Out Error:', error);
@@ -192,7 +230,12 @@ function getCurrentUser() {
       photoURL: user.photoURL
     };
   }
-  return currentUserData;
+  return null;
+}
+
+// Check if pending auth redirect
+function isPendingAuth() {
+  return sessionStorage.getItem('pendingAuth') === 'true';
 }
 
 // ========================================
@@ -889,7 +932,9 @@ function searchMinecraftIcons(query) {
 window.FakepixelHub = {
   initFirebase,
   signInWithGoogle,
-  handleAuthCallback,
+  checkRedirectResult,
+  initializeAuth,
+  isPendingAuth,
   signOut,
   onAuthStateChanged,
   getCurrentUser,

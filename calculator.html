@@ -564,15 +564,25 @@
         
         onMounted(async () => {
           if (window.FakepixelHub.initFirebase()) {
-            // Handle auth callback
-            await window.FakepixelHub.handleAuthCallback();
+            // CRITICAL: Initialize auth and wait for redirect result FIRST
+            console.log('[Calculator] Starting auth initialization...');
+            const initialUser = await window.FakepixelHub.initializeAuth();
+            console.log('[Calculator] Initial user:', initialUser?.email || 'none');
             
+            if (initialUser) {
+              user.value = initialUser;
+              isUserAdmin.value = await window.FakepixelHub.isAdmin(initialUser.email);
+            }
+            
+            // Auth state listener for future changes
             unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
-              user.value = userData;
-              if (userData) {
-                isUserAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
-              } else {
-                isUserAdmin.value = false;
+              if (userData?.uid !== user.value?.uid) {
+                user.value = userData;
+                if (userData) {
+                  isUserAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
+                } else {
+                  isUserAdmin.value = false;
+                }
               }
               refreshIcons();
             });
