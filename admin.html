@@ -783,33 +783,24 @@
         
         onMounted(async () => {
           if (window.FakepixelHub.initFirebase()) {
-            // CRITICAL: Initialize auth and wait for redirect result FIRST
-            console.log('[Admin] Starting auth initialization...');
-            const initialUser = await window.FakepixelHub.initializeAuth();
-            console.log('[Admin] Initial user:', initialUser?.email || 'none');
+            // Step 1: Handle redirect result FIRST (critical for mobile)
+            await window.FakepixelHub.handleRedirectResult();
             
-            if (initialUser) {
-              user.value = initialUser;
-              isSuperAdmin.value = window.FakepixelHub.isSuperAdmin(initialUser.email);
-              isAdmin.value = await window.FakepixelHub.isAdmin(initialUser.email);
-            }
-            
-            authLoading.value = false;
-            
-            // Auth state listener for future changes
+            // Step 2: Set up auth state listener
             unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
-              if (userData?.uid !== user.value?.uid) {
-                user.value = userData;
-                
-                if (userData) {
-                  isSuperAdmin.value = window.FakepixelHub.isSuperAdmin(userData.email);
-                  isAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
-                } else {
-                  isAdmin.value = false;
-                  isSuperAdmin.value = false;
-                }
+              console.log('[Admin] Auth state changed:', userData?.email || 'logged out');
+              
+              user.value = userData;
+              
+              if (userData) {
+                isSuperAdmin.value = window.FakepixelHub.isSuperAdmin(userData.email);
+                isAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
+              } else {
+                isAdmin.value = false;
+                isSuperAdmin.value = false;
               }
               
+              authLoading.value = false;
               refreshIcons();
             });
             

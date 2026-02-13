@@ -564,26 +564,21 @@
         
         onMounted(async () => {
           if (window.FakepixelHub.initFirebase()) {
-            // CRITICAL: Initialize auth and wait for redirect result FIRST
-            console.log('[Calculator] Starting auth initialization...');
-            const initialUser = await window.FakepixelHub.initializeAuth();
-            console.log('[Calculator] Initial user:', initialUser?.email || 'none');
+            // Step 1: Handle redirect result FIRST (critical for mobile)
+            await window.FakepixelHub.handleRedirectResult();
             
-            if (initialUser) {
-              user.value = initialUser;
-              isUserAdmin.value = await window.FakepixelHub.isAdmin(initialUser.email);
-            }
-            
-            // Auth state listener for future changes
+            // Step 2: Set up auth state listener
             unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
-              if (userData?.uid !== user.value?.uid) {
-                user.value = userData;
-                if (userData) {
-                  isUserAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
-                } else {
-                  isUserAdmin.value = false;
-                }
+              console.log('[Calculator] Auth state changed:', userData?.email || 'logged out');
+              
+              user.value = userData;
+              
+              if (userData) {
+                isUserAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
+              } else {
+                isUserAdmin.value = false;
               }
+              
               refreshIcons();
             });
             

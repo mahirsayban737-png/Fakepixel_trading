@@ -1,6 +1,6 @@
 /* ========================================
-   FAKEPIXEL TRADING HUB - CORE APPLICATION v4.4
-   Firebase Auth (BULLETPROOF REDIRECT FLOW), Storage, Real-time Database
+   FAKEPIXEL TRADING HUB - CORE APPLICATION v4.5
+   Firebase Auth (SIMPLE WORKING FLOW), Storage, Real-time Database
    Profile System, Multi-Admin, Advanced Trading
    ======================================== */
 
@@ -24,11 +24,6 @@ const SUPER_ADMIN_EMAIL = "mahirsayban737@gmail.com";
 // Initialize Firebase
 let app, database, auth, storage;
 
-// AUTH STATE TRACKING - Critical for mobile
-let authInitialized = false;
-let redirectResultProcessed = false;
-let pendingRedirectUser = null;
-
 function initFirebase() {
   if (typeof firebase !== 'undefined') {
     if (!firebase.apps.length) {
@@ -40,9 +35,6 @@ function initFirebase() {
     auth = firebase.auth();
     storage = firebase.storage();
     
-    // CRITICAL: Set persistence immediately after init
-    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
-    
     // Run auto cleanup on init
     cleanupExpiredTrades();
     
@@ -52,58 +44,36 @@ function initFirebase() {
 }
 
 // ========================================
-// BULLETPROOF AUTH FLOW - MOBILE FIX v4.4
+// AUTHENTICATION (Simple Working Flow from v3.0)
 // ========================================
 
-// Step 1: Sign in with redirect
+// Google Sign-In with Redirect (Mobile Compatible)
 async function signInWithGoogle() {
   try {
-    // Set LOCAL persistence
-    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-    
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({
-      'client_id': GOOGLE_CLIENT_ID,
-      'prompt': 'select_account'
+      'client_id': GOOGLE_CLIENT_ID
     });
     provider.addScope('profile');
     provider.addScope('email');
     
-    // Store a flag in sessionStorage to know we're expecting a redirect
-    sessionStorage.setItem('pendingAuth', 'true');
-    
     // Use redirect for mobile compatibility
     await auth.signInWithRedirect(provider);
+    return { success: true };
   } catch (error) {
-    console.error('Sign-in error:', error);
-    sessionStorage.removeItem('pendingAuth');
-    throw error;
+    console.error('Google Sign-In Error:', error);
+    return { success: false, error: error.message };
   }
 }
 
-// Step 2: Check redirect result - MUST BE CALLED FIRST ON PAGE LOAD
-async function checkRedirectResult() {
-  if (redirectResultProcessed) {
-    return pendingRedirectUser;
-  }
-  
+// Handle Redirect Result (call on page load)
+async function handleRedirectResult() {
   try {
-    console.log('[Auth] Checking redirect result...');
-    
-    // Get the redirect result
     const result = await auth.getRedirectResult();
-    redirectResultProcessed = true;
-    sessionStorage.removeItem('pendingAuth');
-    
-    if (result && result.user) {
-      console.log('[Auth] Redirect SUCCESS:', result.user.email);
-      
-      pendingRedirectUser = result.user;
-      
-      // Create profile if new user
+    if (result.user) {
+      // Check if user has a profile, if not create one
       const existingProfile = await getUserProfile(result.user.uid);
       if (!existingProfile) {
-        console.log('[Auth] Creating new profile...');
         await saveUserProfile(result.user.uid, {
           email: result.user.email,
           googleName: result.user.displayName,
@@ -111,84 +81,43 @@ async function checkRedirectResult() {
           createdAt: firebase.database.ServerValue.TIMESTAMP
         });
       }
-      
-      return result.user;
-    } else {
-      console.log('[Auth] No redirect result');
-      return null;
+      return {
+        success: true,
+        user: {
+          uid: result.user.uid,
+          displayName: result.user.displayName,
+          email: result.user.email,
+          photoURL: result.user.photoURL
+        }
+      };
     }
+    return { success: true, user: null };
   } catch (error) {
-    console.error('[Auth] Redirect error:', error);
-    redirectResultProcessed = true;
-    sessionStorage.removeItem('pendingAuth');
-    return null;
+    console.error('Redirect Result Error:', error);
+    return { success: false, error: error.message };
   }
 }
 
-// Step 3: Initialize auth and return user state
-async function initializeAuth() {
-  return new Promise(async (resolve) => {
-    // First, check redirect result
-    const redirectUser = await checkRedirectResult();
-    
-    if (redirectUser) {
-      // User came from redirect, resolve with that user
-      const fakepixelName = await getFakepixelUsername(redirectUser.uid);
-      const profile = await getUserProfile(redirectUser.uid);
-      
-      resolve({
-        uid: redirectUser.uid,
-        displayName: redirectUser.displayName,
-        email: redirectUser.email,
-        photoURL: redirectUser.photoURL,
-        fakepixelName: fakepixelName,
-        needsProfile: !fakepixelName,
-        profile: profile
-      });
-      return;
-    }
-    
-    // No redirect user, check current auth state
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      const fakepixelName = await getFakepixelUsername(currentUser.uid);
-      const profile = await getUserProfile(currentUser.uid);
-      
-      resolve({
-        uid: currentUser.uid,
-        displayName: currentUser.displayName,
-        email: currentUser.email,
-        photoURL: currentUser.photoURL,
-        fakepixelName: fakepixelName,
-        needsProfile: !fakepixelName,
-        profile: profile
-      });
-      return;
-    }
-    
-    // No user at all
-    resolve(null);
-  });
+// Sign Out
+async function signOut() {
+  try {
+    await auth.signOut();
+    return { success: true };
+  } catch (error) {
+    console.error('Sign Out Error:', error);
+    return { success: false, error: error.message };
+  }
 }
 
-// Step 4: Subscribe to auth changes (for logout/login after initial load)
+// Auth State Listener (Simple - like v3.0)
 function onAuthStateChanged(callback) {
-  let initialCallDone = false;
-  
   return auth.onAuthStateChanged(async (user) => {
-    // Skip the first call if we haven't processed redirect yet
-    if (!redirectResultProcessed && !initialCallDone) {
-      initialCallDone = true;
-      // Wait for redirect result first
-      const redirectUser = await checkRedirectResult();
-      user = redirectUser || user;
-    }
-    
     if (user) {
+      // Get Fakepixel profile data
       const fakepixelName = await getFakepixelUsername(user.uid);
       const profile = await getUserProfile(user.uid);
       
-      const userData = {
+      callback({
         uid: user.uid,
         displayName: user.displayName,
         email: user.email,
@@ -196,27 +125,11 @@ function onAuthStateChanged(callback) {
         fakepixelName: fakepixelName,
         needsProfile: !fakepixelName,
         profile: profile
-      };
-      
-      callback(userData);
+      });
     } else {
       callback(null);
     }
-    
-    authInitialized = true;
   });
-}
-
-// Sign Out
-async function signOut() {
-  try {
-    await auth.signOut();
-    pendingRedirectUser = null;
-    return { success: true };
-  } catch (error) {
-    console.error('Sign Out Error:', error);
-    return { success: false, error: error.message };
-  }
 }
 
 // Get Current User
@@ -231,11 +144,6 @@ function getCurrentUser() {
     };
   }
   return null;
-}
-
-// Check if pending auth redirect
-function isPendingAuth() {
-  return sessionStorage.getItem('pendingAuth') === 'true';
 }
 
 // ========================================
@@ -930,19 +838,24 @@ function searchMinecraftIcons(query) {
 // ========================================
 
 window.FakepixelHub = {
+  // Firebase Init
   initFirebase,
+  
+  // Auth (Simple Working Flow)
   signInWithGoogle,
-  checkRedirectResult,
-  initializeAuth,
-  isPendingAuth,
+  handleRedirectResult,
   signOut,
   onAuthStateChanged,
   getCurrentUser,
+  
+  // User Profile
   getUserProfile,
   saveUserProfile,
   setFakepixelUsername,
   getFakepixelUsername,
   subscribeToUserProfile,
+  
+  // Admin System
   SUPER_ADMIN_EMAIL,
   isSuperAdmin,
   isAdmin,
@@ -950,20 +863,32 @@ window.FakepixelHub = {
   addAdmin,
   removeAdmin,
   subscribeToAdmins,
+  
+  // Storage
   uploadItemImage,
+  
+  // Items CRUD
   createItem,
   updateItem,
   deleteItem,
+  
+  // Trades CRUD
   createTrade,
   deleteTrade,
   countUserTrades,
   canUserPostTrade,
   validateTradeData,
+  
+  // Cleanup
   cleanupExpiredTrades,
   manualCleanup,
+  
+  // Subscriptions
   subscribeToItems,
   subscribeToTrades,
   subscribeToUserTrades,
+  
+  // Utilities
   formatNumber,
   formatRelativeTime,
   getDaysUntilExpiry,
@@ -971,6 +896,8 @@ window.FakepixelHub = {
   calculateTradeFairness,
   getDemandClass,
   getTrendInfo,
+  
+  // Minecraft Icons
   MINECRAFT_ICONS,
   searchMinecraftIcons
 };
