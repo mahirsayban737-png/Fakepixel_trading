@@ -48,14 +48,6 @@
 </head>
 <body class="bg-dark-900 min-h-screen">
   <div id="app">
-    <!-- Loading Overlay for Auth Redirect -->
-    <div v-if="authLoading" class="fixed inset-0 bg-dark-900 z-50 flex items-center justify-center">
-      <div class="text-center">
-        <div class="spinner mx-auto mb-4"></div>
-        <p class="text-slate-400">Signing you in...</p>
-      </div>
-    </div>
-    
     <!-- Navbar -->
     <nav class="navbar px-4 py-3">
       <div class="max-w-7xl mx-auto flex items-center justify-between">
@@ -92,15 +84,10 @@
           
           <!-- User Profile / Sign In -->
           <div v-if="user" class="flex items-center gap-2">
-            <img :src="user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'User')" 
+            <img :src="user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName)" 
                  :alt="user.displayName" 
-                 class="user-avatar"
-                 @error="handleAvatarError">
-            <div class="hidden sm:block">
-              <div class="text-sm font-medium truncate max-w-[100px]">{{ user.displayName }}</div>
-              <div class="text-xs text-slate-500">{{ userTradeCount }}/5 trades</div>
-            </div>
-            <button @click="handleSignOut" class="text-slate-400 hover:text-white p-2 ml-1" title="Sign Out">
+                 class="user-avatar-sm">
+            <button @click="handleSignOut" class="text-slate-400 hover:text-white p-2">
               <i data-lucide="log-out" class="w-4 h-4"></i>
             </button>
           </div>
@@ -154,25 +141,15 @@
               <i data-lucide="plus-circle" class="w-5 h-5 text-violet-400"></i>
               Post a Trade
             </h2>
-            <div class="text-sm" :class="userTradeCount >= 5 ? 'text-red-400' : 'text-slate-400'">
-              <i data-lucide="alert-circle" class="w-4 h-4 inline" v-if="userTradeCount >= 5"></i>
+            <div class="text-sm text-slate-400">
               {{ userTradeCount }}/5 trades used
             </div>
-          </div>
-          
-          <!-- Trade Limit Warning -->
-          <div v-if="userTradeCount >= 5" class="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
-            <div class="flex items-center gap-2 text-red-400">
-              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-              <span class="font-medium">Trade limit reached!</span>
-            </div>
-            <p class="text-sm text-red-400/80 mt-1">Delete an existing trade before posting a new one.</p>
           </div>
           
           <!-- Trade Description -->
           <div class="mb-4">
             <label class="block text-sm text-slate-400 mb-2">Trade Description</label>
-            <textarea v-model="newTrade.description" class="input-field" rows="2" placeholder="Describe your trade..." :disabled="userTradeCount >= 5"></textarea>
+            <textarea v-model="newTrade.description" class="input-field" rows="2" placeholder="Describe your trade..."></textarea>
           </div>
           
           <div class="grid lg:grid-cols-2 gap-6 mb-4">
@@ -185,14 +162,14 @@
               
               <!-- Item Selector -->
               <div class="flex gap-2 mb-3">
-                <select v-model="selectedOfferingItem" class="input-field flex-1 text-sm py-2" :disabled="userTradeCount >= 5">
+                <select v-model="selectedOfferingItem" class="input-field flex-1 text-sm py-2">
                   <option value="">Add item...</option>
                   <option v-for="item in items" :key="item.id" :value="item.id">
-                    {{ item.name }} ({{ formatNumber(item.value) }})
+                    {{ item.name }}
                   </option>
                 </select>
-                <input v-model.number="offeringQty" type="number" min="1" class="input-field w-16 text-sm py-2" placeholder="Qty" :disabled="userTradeCount >= 5">
-                <button @click="addOfferingItem" class="btn-primary px-3 py-2" :disabled="!selectedOfferingItem || userTradeCount >= 5">
+                <input v-model.number="offeringQty" type="number" min="1" class="input-field w-16 text-sm py-2" placeholder="Qty">
+                <button @click="addOfferingItem" class="btn-primary px-3 py-2" :disabled="!selectedOfferingItem">
                   <i data-lucide="plus" class="w-4 h-4"></i>
                 </button>
               </div>
@@ -203,7 +180,7 @@
                   <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
                   <div class="item-name">{{ getItemName(item.id) }}</div>
                   <div class="item-qty">x{{ item.quantity }}</div>
-                  <button @click="removeOfferingItem(idx)" class="text-red-400 text-xs mt-1 hover:text-red-300">
+                  <button @click="removeOfferingItem(idx)" class="text-red-400 text-xs mt-1">
                     <i data-lucide="x" class="w-3 h-3"></i>
                   </button>
                 </div>
@@ -213,7 +190,7 @@
               <!-- Purse Offering -->
               <div class="mt-3 flex items-center gap-2">
                 <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
-                <input v-model.number="newTrade.purseOffering" type="number" min="0" class="input-field flex-1 text-sm py-2" placeholder="Coins offering" :disabled="userTradeCount >= 5">
+                <input v-model.number="newTrade.purseOffering" type="number" min="0" class="input-field flex-1 text-sm py-2" placeholder="Coins offering">
               </div>
             </div>
             
@@ -226,14 +203,14 @@
               
               <!-- Item Selector -->
               <div class="flex gap-2 mb-3">
-                <select v-model="selectedSeekingItem" class="input-field flex-1 text-sm py-2" :disabled="userTradeCount >= 5">
+                <select v-model="selectedSeekingItem" class="input-field flex-1 text-sm py-2">
                   <option value="">Add item...</option>
                   <option v-for="item in items" :key="item.id" :value="item.id">
-                    {{ item.name }} ({{ formatNumber(item.value) }})
+                    {{ item.name }}
                   </option>
                 </select>
-                <input v-model.number="seekingQty" type="number" min="1" class="input-field w-16 text-sm py-2" placeholder="Qty" :disabled="userTradeCount >= 5">
-                <button @click="addSeekingItem" class="btn-primary px-3 py-2" :disabled="!selectedSeekingItem || userTradeCount >= 5">
+                <input v-model.number="seekingQty" type="number" min="1" class="input-field w-16 text-sm py-2" placeholder="Qty">
+                <button @click="addSeekingItem" class="btn-primary px-3 py-2" :disabled="!selectedSeekingItem">
                   <i data-lucide="plus" class="w-4 h-4"></i>
                 </button>
               </div>
@@ -244,7 +221,7 @@
                   <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
                   <div class="item-name">{{ getItemName(item.id) }}</div>
                   <div class="item-qty">x{{ item.quantity }}</div>
-                  <button @click="removeSeekingItem(idx)" class="text-red-400 text-xs mt-1 hover:text-red-300">
+                  <button @click="removeSeekingItem(idx)" class="text-red-400 text-xs mt-1">
                     <i data-lucide="x" class="w-3 h-3"></i>
                   </button>
                 </div>
@@ -254,7 +231,7 @@
               <!-- Purse Seeking -->
               <div class="mt-3 flex items-center gap-2">
                 <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
-                <input v-model.number="newTrade.purseSeeking" type="number" min="0" class="input-field flex-1 text-sm py-2" placeholder="Coins seeking" :disabled="userTradeCount >= 5">
+                <input v-model.number="newTrade.purseSeeking" type="number" min="0" class="input-field flex-1 text-sm py-2" placeholder="Coins seeking">
               </div>
             </div>
           </div>
@@ -264,7 +241,7 @@
             {{ tradeError }}
           </div>
           
-          <button @click="postTrade" class="btn-primary w-full sm:w-auto" :disabled="!canPostTrade || posting || userTradeCount >= 5">
+          <button @click="postTrade" class="btn-primary w-full sm:w-auto" :disabled="!canPostTrade || posting">
             <span v-if="posting" class="flex items-center justify-center gap-2">
               <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               Posting...
@@ -279,7 +256,7 @@
     </section>
     
     <!-- Sign In Prompt -->
-    <section class="py-8 px-4" v-else-if="!authLoading">
+    <section class="py-8 px-4" v-else>
       <div class="max-w-md mx-auto">
         <div class="glass-card p-8 text-center">
           <div class="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center mx-auto mb-4">
@@ -338,15 +315,14 @@
             <!-- Trade Header -->
             <div class="flex items-start justify-between mb-4">
               <div class="flex items-center gap-3">
-                <img :src="trade.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(trade.username || 'User')" 
+                <img :src="trade.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(trade.username)" 
                      :alt="trade.username"
-                     class="w-10 h-10 rounded-full object-cover border-2 border-violet-500/50"
-                     @error="handleAvatarError">
+                     class="w-10 h-10 rounded-full object-cover border-2 border-violet-500/50">
                 <div>
                   <div class="font-semibold">{{ trade.username || 'Anonymous' }}</div>
                   <div class="text-xs text-slate-500 flex items-center gap-2">
                     <span>{{ formatTime(trade.timestamp) }}</span>
-                    <span class="expiry-badge" :class="{ 'expiring-soon': isExpiringSoon(trade.timestamp) }">
+                    <span class="expiry-badge" :class="{ 'expiring-soon': getDaysUntilExpiry(trade.timestamp) <= 1 }">
                       <i data-lucide="clock" class="w-3 h-3"></i>
                       {{ getDaysUntilExpiry(trade.timestamp) }}d left
                     </span>
@@ -357,8 +333,7 @@
               <!-- Delete Button (Owner Only) -->
               <button v-if="user && trade.uid === user.uid" 
                       @click="handleDeleteTrade(trade.id)" 
-                      class="text-slate-400 hover:text-red-400 p-2 transition-colors"
-                      title="Delete Trade">
+                      class="text-slate-400 hover:text-red-400 p-2 transition-colors">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
               </button>
             </div>
@@ -373,14 +348,14 @@
                 <div class="text-xs text-emerald-400 font-semibold mb-2 flex items-center gap-1">
                   <i data-lucide="arrow-up" class="w-3 h-3"></i> Offering
                 </div>
-                <div class="multi-item-container" v-if="trade.offering?.length">
+                <div class="multi-item-container">
                   <div v-for="(item, idx) in trade.offering" :key="idx" class="multi-item-card">
                     <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
                     <div class="item-name">{{ getItemName(item.id) }}</div>
                     <div class="item-qty">x{{ item.quantity }}</div>
                   </div>
+                  <div v-if="!trade.offering?.length && !trade.purseOffering" class="text-slate-500 text-xs py-4">No items</div>
                 </div>
-                <div v-else-if="!trade.purseOffering" class="text-slate-500 text-xs py-4 text-center">No items</div>
                 <div v-if="trade.purseOffering" class="purse-badge mt-2">
                   <i data-lucide="coins" class="w-3 h-3"></i>
                   {{ formatNumber(trade.purseOffering) }}
@@ -397,14 +372,14 @@
                 <div class="text-xs text-cyan-400 font-semibold mb-2 flex items-center gap-1">
                   <i data-lucide="arrow-down" class="w-3 h-3"></i> Seeking
                 </div>
-                <div class="multi-item-container" v-if="trade.seeking?.length">
+                <div class="multi-item-container">
                   <div v-for="(item, idx) in trade.seeking" :key="idx" class="multi-item-card">
                     <img :src="getItemImage(item.id)" :alt="getItemName(item.id)" @error="handleImageError">
                     <div class="item-name">{{ getItemName(item.id) }}</div>
                     <div class="item-qty">x{{ item.quantity }}</div>
                   </div>
+                  <div v-if="!trade.seeking?.length && !trade.purseSeeking" class="text-slate-500 text-xs py-4">No items</div>
                 </div>
-                <div v-else-if="!trade.purseSeeking" class="text-slate-500 text-xs py-4 text-center">No items</div>
                 <div v-if="trade.purseSeeking" class="purse-badge mt-2">
                   <i data-lucide="coins" class="w-3 h-3"></i>
                   {{ formatNumber(trade.purseSeeking) }}
@@ -433,18 +408,11 @@
             <i data-lucide="x" class="w-6 h-6"></i>
           </button>
         </div>
-        <div class="flex items-center gap-4 mb-4">
-          <img :src="selectedTrade?.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(selectedTrade?.username || 'User')" 
-               class="w-12 h-12 rounded-full border-2 border-violet-500">
-          <div>
-            <div class="font-semibold">{{ selectedTrade?.username }}</div>
-            <div class="text-sm text-slate-400">Active Trader</div>
-          </div>
-        </div>
         <p class="text-slate-400 mb-4">
-          To contact this trader, message them in-game on Fakepixel server:
+          To contact <span class="text-violet-400 font-semibold">{{ selectedTrade?.username }}</span>, 
+          message them in-game on Fakepixel server.
         </p>
-        <div class="bg-dark-700 rounded-lg p-4 mb-4 font-mono text-sm">
+        <div class="bg-dark-700 rounded-lg p-4 mb-4">
           <code class="text-cyan-400">/msg {{ selectedTrade?.username }} I'm interested in your trade!</code>
         </div>
         <button @click="showContactModal = false" class="btn-primary w-full">Got it!</button>
@@ -461,7 +429,6 @@
     createApp({
       setup() {
         const user = ref(null);
-        const authLoading = ref(true);
         const items = ref([]);
         const trades = ref([]);
         const loading = ref(true);
@@ -509,7 +476,6 @@
         const formatNumber = (num) => window.FakepixelHub.formatNumber(num);
         const formatTime = (timestamp) => window.FakepixelHub.formatRelativeTime(timestamp);
         const getDaysUntilExpiry = (timestamp) => window.FakepixelHub.getDaysUntilExpiry(timestamp);
-        const isExpiringSoon = (timestamp) => window.FakepixelHub.isExpiringSoon(timestamp);
         
         const getItemName = (itemId) => {
           if (!itemId) return 'Unknown';
@@ -525,10 +491,6 @@
         
         const handleImageError = (e) => {
           e.target.src = 'https://via.placeholder.com/40?text=?';
-        };
-        
-        const handleAvatarError = (e) => {
-          e.target.src = 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff';
         };
         
         const addOfferingItem = () => {
@@ -562,7 +524,7 @@
         };
         
         const postTrade = async () => {
-          if (!canPostTrade.value || userTradeCount.value >= 5) return;
+          if (!canPostTrade.value) return;
           
           posting.value = true;
           tradeError.value = '';
@@ -583,7 +545,7 @@
               purseOffering: 0,
               purseSeeking: 0
             };
-            await updateUserTradeCount();
+            updateUserTradeCount();
           } else {
             tradeError.value = result.error;
           }
@@ -593,31 +555,25 @@
         
         const handleDeleteTrade = async (tradeId) => {
           if (confirm('Are you sure you want to delete this trade?')) {
-            const result = await window.FakepixelHub.deleteTrade(tradeId);
-            if (result.success) {
-              await updateUserTradeCount();
-            } else {
-              alert(result.error);
-            }
+            await window.FakepixelHub.deleteTrade(tradeId);
+            updateUserTradeCount();
           }
         };
         
         const contactTrader = (trade) => {
           selectedTrade.value = trade;
           showContactModal.value = true;
-          refreshIcons();
         };
         
         const handleGoogleSignIn = async () => {
-          authLoading.value = true;
-          await window.FakepixelHub.signInWithGoogle();
-          // Redirect will happen, page will reload
+          const result = await window.FakepixelHub.signInWithGoogle();
+          if (!result.success) {
+            alert('Sign in failed: ' + result.error);
+          }
         };
         
         const handleSignOut = async () => {
           await window.FakepixelHub.signOut();
-          user.value = null;
-          userTradeCount.value = 0;
         };
         
         const updateUserTradeCount = async () => {
@@ -634,20 +590,12 @@
           }, 50);
         };
         
-        onMounted(async () => {
+        onMounted(() => {
           if (window.FakepixelHub.initFirebase()) {
-            // Handle redirect result from Google Sign-In
-            const redirectResult = await window.FakepixelHub.handleRedirectResult();
-            if (redirectResult.success && redirectResult.user) {
-              user.value = redirectResult.user;
-              await updateUserTradeCount();
-            }
-            
             // Auth listener
-            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
+            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged((userData) => {
               user.value = userData;
-              authLoading.value = false;
-              await updateUserTradeCount();
+              updateUserTradeCount();
               refreshIcons();
             });
             
@@ -664,12 +612,11 @@
             });
           } else {
             loading.value = false;
-            authLoading.value = false;
           }
           
           refreshIcons();
           
-          // Simulate online count updates
+          // Simulate online count
           setInterval(() => {
             onlineCount.value = Math.floor(Math.random() * 50) + 20;
           }, 30000);
@@ -681,11 +628,10 @@
           if (unsubscribeAuth) unsubscribeAuth();
         });
         
-        watch(user, updateUserTradeCount);
+        watch([user, trades], updateUserTradeCount);
         
         return {
           user,
-          authLoading,
           items,
           trades,
           loading,
@@ -706,11 +652,9 @@
           formatNumber,
           formatTime,
           getDaysUntilExpiry,
-          isExpiringSoon,
           getItemName,
           getItemImage,
           handleImageError,
-          handleAvatarError,
           addOfferingItem,
           removeOfferingItem,
           addSeekingItem,

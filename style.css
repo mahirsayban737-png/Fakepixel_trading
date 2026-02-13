@@ -701,21 +701,6 @@ html {
   to { transform: rotate(360deg); }
 }
 
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-slideInUp {
-  animation: slideInUp 0.3s ease-out;
-}
-
 /* Gradient Text */
 .gradient-text {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));

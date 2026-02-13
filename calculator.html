@@ -608,11 +608,8 @@
           }, 50);
         };
         
-        onMounted(async () => {
+        onMounted(() => {
           if (window.FakepixelHub.initFirebase()) {
-            // Handle any redirect result (for consistent auth state)
-            await window.FakepixelHub.handleRedirectResult();
-            
             unsubscribeItems = window.FakepixelHub.subscribeToItems((data) => {
               items.value = data;
               loading.value = false;
