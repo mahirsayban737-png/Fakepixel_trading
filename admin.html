@@ -1,746 +1,860 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fakepixel Trading Hub v2.1 | Admin Panel</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        
-        * {
-            font-family: 'Inter', sans-serif;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#020617">
+  <title>Admin Dashboard - Fakepixel Hub</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: { 900: '#020617', 800: '#0f172a', 700: '#1e293b', 600: '#334155' }
+          }
         }
-        
-        body {
-            background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e1b4b 100%);
-            min-height: 100vh;
-        }
-        
-        .minecraft-item {
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-        }
-        
-        .glass-card {
-            background: rgba(15, 23, 42, 0.5);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(71, 85, 105, 0.3);
-        }
-        
-        .glass-card-hover:hover {
-            background: rgba(15, 23, 42, 0.7);
-            border-color: rgba(139, 92, 246, 0.3);
-            box-shadow: 0 0 30px rgba(139, 92, 246, 0.1);
-        }
-        
-        .glow-purple {
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
-        }
-        
-        .glow-amber {
-            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
-        }
-        
-        .scrollbar-thin::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .scrollbar-thin::-webkit-scrollbar-track {
-            background: #1e293b;
-        }
-        
-        .scrollbar-thin::-webkit-scrollbar-thumb {
-            background: #8b5cf6;
-            border-radius: 3px;
-        }
-        
-        @keyframes pulse-amber {
-            0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.2); }
-            50% { box-shadow: 0 0 40px rgba(245, 158, 11, 0.4); }
-        }
-        
-        .animate-pulse-amber {
-            animation: pulse-amber 2s ease-in-out infinite;
-        }
-    </style>
+      }
+    }
+  </script>
 </head>
-<body class="text-white antialiased">
-    <div id="app">
-        <!-- Loading/Auth Check Screen -->
-        <div v-if="authChecking" class="min-h-screen flex items-center justify-center">
-            <div class="text-center">
-                <div class="w-16 h-16 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4"></div>
-                <p class="text-slate-400">Verifying admin access...</p>
-            </div>
-        </div>
-
-        <!-- Access Denied Screen -->
-        <div v-else-if="!isAdmin" class="min-h-screen flex items-center justify-center p-4">
-            <div class="glass-card rounded-2xl p-8 max-w-md w-full text-center">
-                <div class="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <i data-lucide="shield-x" class="w-10 h-10 text-red-400"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-red-400 mb-2">Access Denied</h1>
-                <p class="text-slate-400 mb-6">You do not have permission to access the admin panel.</p>
-                <a href="index.html" 
-                   class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-violet-600 rounded-lg font-medium transition-all">
-                    <i data-lucide="home" class="w-4 h-4"></i>
-                    Return to Marketplace
-                </a>
-            </div>
-        </div>
-
-        <!-- Admin Panel -->
-        <template v-else>
-            <!-- Navigation -->
-            <nav class="glass-card sticky top-0 z-50 border-b border-slate-800">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div class="flex items-center justify-between h-16">
-                        <!-- Logo -->
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center glow-amber animate-pulse-amber">
-                                <i data-lucide="shield" class="w-6 h-6 text-white"></i>
-                            </div>
-                            <div>
-                                <h1 class="text-xl font-bold bg-gradient-to-r from-amber-400 to-orange-300 bg-clip-text text-transparent">
-                                    Admin Panel
-                                </h1>
-                                <p class="text-xs text-slate-500">Fakepixel Hub v2.1</p>
-                            </div>
-                        </div>
-                        
-                        <!-- Nav Links -->
-                        <div class="hidden md:flex items-center space-x-1">
-                            <a href="index.html" class="px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 font-medium transition-all">
-                                <span class="flex items-center gap-2">
-                                    <i data-lucide="store" class="w-4 h-4"></i>
-                                    Marketplace
-                                </span>
-                            </a>
-                            <a href="calculator.html" class="px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 font-medium transition-all">
-                                <span class="flex items-center gap-2">
-                                    <i data-lucide="calculator" class="w-4 h-4"></i>
-                                    Calculator
-                                </span>
-                            </a>
-                            <a href="admin.html" class="px-4 py-2 rounded-lg bg-amber-500/20 text-amber-300 font-medium transition-all">
-                                <span class="flex items-center gap-2">
-                                    <i data-lucide="shield" class="w-4 h-4"></i>
-                                    Admin
-                                </span>
-                            </a>
-                        </div>
-                        
-                        <!-- User Section -->
-                        <div class="flex items-center space-x-4">
-                            <div class="flex items-center space-x-3">
-                                <img :src="user?.photoURL || 'https://via.placeholder.com/40'" 
-                                     class="w-9 h-9 rounded-full border-2 border-amber-500/50">
-                                <div class="hidden sm:block">
-                                    <p class="text-sm font-medium text-white">{{ user?.displayName }}</p>
-                                    <p class="text-xs text-amber-400">
-                                        {{ isSuperAdmin ? '👑 Super Admin' : '🛡️ Admin' }}
-                                    </p>
-                                </div>
-                                <button @click="handleSignOut" 
-                                        class="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                                    <i data-lucide="log-out" class="w-5 h-5"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </nav>
-
-            <!-- Main Content -->
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <!-- Stats Overview -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <div class="glass-card rounded-xl p-6">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-slate-400">Total Items</p>
-                                <p class="text-3xl font-bold text-purple-400">{{ items.length }}</p>
-                            </div>
-                            <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                                <i data-lucide="package" class="w-6 h-6 text-purple-400"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="glass-card rounded-xl p-6">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-slate-400">Active Trades</p>
-                                <p class="text-3xl font-bold text-green-400">{{ trades.length }}</p>
-                            </div>
-                            <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
-                                <i data-lucide="repeat" class="w-6 h-6 text-green-400"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="glass-card rounded-xl p-6">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-slate-400">Admins</p>
-                                <p class="text-3xl font-bold text-amber-400">{{ admins.length }}</p>
-                            </div>
-                            <div class="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center">
-                                <i data-lucide="users" class="w-6 h-6 text-amber-400"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="glass-card rounded-xl p-6">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-slate-400">Status</p>
-                                <p class="text-xl font-bold text-green-400">Online</p>
-                            </div>
-                            <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
-                                <span class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tabs -->
-                <div class="flex space-x-2 mb-6 overflow-x-auto pb-2">
-                    <button @click="activeTab = 'items'" 
-                            :class="activeTab === 'items' ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:border-slate-600'"
-                            class="flex items-center gap-2 px-6 py-3 rounded-xl font-medium border transition-all whitespace-nowrap">
-                        <i data-lucide="package" class="w-4 h-4"></i>
-                        Item Management
-                    </button>
-                    <button @click="activeTab = 'admins'" 
-                            :class="activeTab === 'admins' ? 'bg-amber-500/20 text-amber-300 border-amber-500/50' : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:border-slate-600'"
-                            class="flex items-center gap-2 px-6 py-3 rounded-xl font-medium border transition-all whitespace-nowrap">
-                        <i data-lucide="shield" class="w-4 h-4"></i>
-                        Admin Management
-                    </button>
-                    <button @click="activeTab = 'trades'" 
-                            :class="activeTab === 'trades' ? 'bg-green-500/20 text-green-300 border-green-500/50' : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:border-slate-600'"
-                            class="flex items-center gap-2 px-6 py-3 rounded-xl font-medium border transition-all whitespace-nowrap">
-                        <i data-lucide="repeat" class="w-4 h-4"></i>
-                        Trade Management
-                    </button>
-                </div>
-
-                <!-- Item Management Tab -->
-                <div v-show="activeTab === 'items'" class="space-y-6">
-                    <!-- Add Item Form -->
-                    <div class="glass-card rounded-2xl p-6">
-                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <i data-lucide="plus-circle" class="w-5 h-5 text-purple-400"></i>
-                            {{ editingItem ? 'Edit Item' : 'Add New Item' }}
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div>
-                                <label class="text-sm text-slate-400 mb-1 block">Item Name</label>
-                                <input v-model="itemForm.name" type="text" placeholder="Diamond Sword"
-                                       class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500">
-                            </div>
-                            <div>
-                                <label class="text-sm text-slate-400 mb-1 block">Price (coins)</label>
-                                <input v-model.number="itemForm.price" type="number" placeholder="1000"
-                                       class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500">
-                            </div>
-                            <div>
-                                <label class="text-sm text-slate-400 mb-1 block">Category</label>
-                                <select v-model="itemForm.category"
-                                        class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500">
-                                    <option value="weapons">Weapons</option>
-                                    <option value="armor">Armor</option>
-                                    <option value="tools">Tools</option>
-                                    <option value="resources">Resources</option>
-                                    <option value="enchants">Enchantments</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="text-sm text-slate-400 mb-1 block">Icon URL</label>
-                                <input v-model="itemForm.icon" type="text" placeholder="https://mc-heads.net/item/diamond_sword"
-                                       class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500">
-                            </div>
-                        </div>
-                        <div class="flex gap-3 mt-4">
-                            <button @click="submitItem" :disabled="itemSubmitting"
-                                    class="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-violet-600 rounded-lg font-medium transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50">
-                                <i data-lucide="save" class="w-4 h-4"></i>
-                                {{ editingItem ? 'Update Item' : 'Add Item' }}
-                            </button>
-                            <button v-if="editingItem" @click="cancelEdit"
-                                    class="px-6 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Items List -->
-                    <div class="glass-card rounded-2xl overflow-hidden">
-                        <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
-                                <i data-lucide="list" class="w-5 h-5 text-purple-400"></i>
-                                Items Database ({{ items.length }})
-                            </h3>
-                            <div class="relative">
-                                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                <input v-model="itemSearch" type="text" placeholder="Search items..."
-                                       class="bg-slate-800/50 border border-slate-700 rounded-lg pl-9 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500">
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full">
-                                <thead class="bg-slate-800/50">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Item</th>
-                                        <th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Category</th>
-                                        <th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Price</th>
-                                        <th class="px-4 py-3 text-right text-sm font-medium text-slate-400">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-800">
-                                    <tr v-for="item in filteredItems" :key="item.id" class="hover:bg-slate-800/30 transition-colors">
-                                        <td class="px-4 py-3">
-                                            <div class="flex items-center gap-3">
-                                                <img :src="item.icon || 'https://mc-heads.net/item/diamond'" 
-                                                     class="w-10 h-10 minecraft-item bg-slate-800 rounded-lg p-1">
-                                                <span class="font-medium text-white">{{ item.name }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="px-2 py-1 rounded-full text-xs font-medium capitalize"
-                                                  :class="getCategoryColor(item.category)">
-                                                {{ item.category }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="text-green-400 font-medium">{{ formatPrice(item.price) }} coins</span>
-                                        </td>
-                                        <td class="px-4 py-3 text-right">
-                                            <button @click="editItem(item)"
-                                                    class="p-2 rounded-lg text-blue-400 hover:bg-blue-500/10 transition-all">
-                                                <i data-lucide="edit" class="w-4 h-4"></i>
-                                            </button>
-                                            <button @click="handleDeleteItem(item.id)"
-                                                    class="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-all">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr v-if="filteredItems.length === 0">
-                                        <td colspan="4" class="px-4 py-8 text-center text-slate-500">
-                                            No items found
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Admin Management Tab -->
-                <div v-show="activeTab === 'admins'" class="space-y-6">
-                    <!-- Add Admin Form -->
-                    <div class="glass-card rounded-2xl p-6">
-                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <i data-lucide="user-plus" class="w-5 h-5 text-amber-400"></i>
-                            Add New Admin
-                        </h3>
-                        <div class="flex gap-4">
-                            <input v-model="newAdminEmail" type="email" placeholder="Enter email address..."
-                                   class="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
-                            <button @click="handleAddAdmin" :disabled="adminSubmitting || !newAdminEmail"
-                                    class="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg font-medium transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50">
-                                <i data-lucide="plus" class="w-4 h-4"></i>
-                                Add Admin
-                            </button>
-                        </div>
-                        <p class="text-sm text-slate-500 mt-2">
-                            <i data-lucide="info" class="w-4 h-4 inline"></i>
-                            Only super admin can add or remove other admins.
-                        </p>
-                    </div>
-
-                    <!-- Admins List -->
-                    <div class="glass-card rounded-2xl overflow-hidden">
-                        <div class="p-4 border-b border-slate-800">
-                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
-                                <i data-lucide="users" class="w-5 h-5 text-amber-400"></i>
-                                Admin List ({{ admins.length }})
-                            </h3>
-                        </div>
-                        <div class="divide-y divide-slate-800">
-                            <div v-for="admin in admins" :key="admin.email"
-                                 class="p-4 flex items-center justify-between hover:bg-slate-800/30 transition-colors">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-12 h-12 rounded-full flex items-center justify-center"
-                                         :class="admin.isSuperAdmin ? 'bg-amber-500/20' : 'bg-purple-500/20'">
-                                        <i :data-lucide="admin.isSuperAdmin ? 'crown' : 'shield'" 
-                                           class="w-6 h-6"
-                                           :class="admin.isSuperAdmin ? 'text-amber-400' : 'text-purple-400'"></i>
-                                    </div>
-                                    <div>
-                                        <p class="font-medium text-white">{{ admin.email }}</p>
-                                        <p class="text-sm" :class="admin.isSuperAdmin ? 'text-amber-400' : 'text-slate-400'">
-                                            {{ admin.isSuperAdmin ? '👑 Super Admin (Permanent)' : '🛡️ Admin' }}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div v-if="!admin.isSuperAdmin && isSuperAdmin">
-                                    <button @click="handleRemoveAdmin(admin.email)"
-                                            class="flex items-center gap-2 px-4 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-all">
-                                        <i data-lucide="user-minus" class="w-4 h-4"></i>
-                                        Remove
-                                    </button>
-                                </div>
-                                <div v-else-if="admin.isSuperAdmin">
-                                    <span class="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-sm">
-                                        Protected
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Trade Management Tab -->
-                <div v-show="activeTab === 'trades'" class="space-y-6">
-                    <div class="glass-card rounded-2xl overflow-hidden">
-                        <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
-                                <i data-lucide="repeat" class="w-5 h-5 text-green-400"></i>
-                                Active Trades ({{ trades.length }})
-                            </h3>
-                        </div>
-                        <div class="divide-y divide-slate-800">
-                            <div v-for="trade in trades" :key="trade.id"
-                                 class="p-4 hover:bg-slate-800/30 transition-colors">
-                                <div class="flex items-center justify-between mb-3">
-                                    <div class="flex items-center gap-3">
-                                        <img :src="trade.userPhoto || 'https://via.placeholder.com/40'" 
-                                             class="w-10 h-10 rounded-full">
-                                        <div>
-                                            <p class="font-medium text-white">{{ trade.userName }}</p>
-                                            <p class="text-sm text-slate-400">{{ trade.userEmail }}</p>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
-                                            {{ getTimeRemaining(trade.expiresAt) }}
-                                        </span>
-                                        <button @click="handleDeleteTrade(trade.id)"
-                                                class="flex items-center gap-2 px-4 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-all">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                            Delete
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-4 text-sm">
-                                    <div class="flex-1">
-                                        <p class="text-purple-400 mb-1">Offering:</p>
-                                        <div class="flex flex-wrap gap-1">
-                                            <span v-for="item in trade.offering" :key="item.itemId"
-                                                  class="px-2 py-1 bg-slate-800/50 rounded text-slate-300">
-                                                {{ getItemName(item.itemId) }} x{{ item.quantity }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <i data-lucide="arrow-right" class="w-5 h-5 text-slate-500"></i>
-                                    <div class="flex-1">
-                                        <p class="text-violet-400 mb-1">Seeking:</p>
-                                        <div class="flex flex-wrap gap-1">
-                                            <span v-for="item in trade.seeking" :key="item.itemId"
-                                                  class="px-2 py-1 bg-slate-800/50 rounded text-slate-300">
-                                                {{ getItemName(item.itemId) }} x{{ item.quantity }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div v-if="trades.length === 0" class="p-8 text-center text-slate-500">
-                                No active trades
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </template>
+<body class="bg-dark-900 min-h-screen">
+  <div id="app">
+    <!-- Loading -->
+    <div v-if="authLoading" class="fixed inset-0 bg-dark-900 z-50 flex items-center justify-center">
+      <div class="text-center">
+        <div class="spinner mx-auto mb-4"></div>
+        <p class="text-slate-400">Checking permissions...</p>
+      </div>
     </div>
-
-    <script src="app.js"></script>
-    <script>
-        const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+    
+    <!-- Navbar -->
+    <nav class="navbar px-4 py-3">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <a href="index.html" class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+            <i data-lucide="gem" class="w-6 h-6 text-white"></i>
+          </div>
+          <span class="text-xl font-bold gradient-text hidden sm:block">Fakepixel Hub</span>
+        </a>
         
-        createApp({
-            setup() {
-                // State
-                const user = ref(null);
-                const isAdmin = ref(false);
-                const isSuperAdmin = ref(false);
-                const authChecking = ref(true);
-                const activeTab = ref('items');
-                
-                const items = ref([]);
-                const trades = ref([]);
-                const admins = ref([]);
-                
-                const itemForm = ref({
-                    name: '',
-                    price: 0,
-                    category: 'other',
-                    icon: ''
-                });
-                const editingItem = ref(null);
-                const itemSubmitting = ref(false);
-                const itemSearch = ref('');
-                
-                const newAdminEmail = ref('');
-                const adminSubmitting = ref(false);
-                
-                let unsubscribeItems = null;
-                let unsubscribeTrades = null;
-                
-                // Computed
-                const filteredItems = computed(() => {
-                    if (!itemSearch.value) return items.value;
-                    const query = itemSearch.value.toLowerCase();
-                    return items.value.filter(item => 
-                        item.name?.toLowerCase().includes(query) ||
-                        item.category?.toLowerCase().includes(query)
-                    );
-                });
-                
-                // Methods
-                const handleSignOut = async () => {
-                    try {
-                        await FakepixelHub.signOut();
-                        window.location.href = 'index.html';
-                    } catch (error) {
-                        console.error("Sign out error:", error);
-                    }
-                };
-                
-                const getCategoryColor = (category) => {
-                    const colors = {
-                        weapons: 'bg-red-500/20 text-red-400',
-                        armor: 'bg-blue-500/20 text-blue-400',
-                        tools: 'bg-yellow-500/20 text-yellow-400',
-                        resources: 'bg-green-500/20 text-green-400',
-                        enchants: 'bg-purple-500/20 text-purple-400',
-                        other: 'bg-slate-500/20 text-slate-400'
-                    };
-                    return colors[category] || colors.other;
-                };
-                
-                const formatPrice = (price) => {
-                    return FakepixelHub.formatPrice(price || 0);
-                };
-                
-                const getTimeRemaining = (expiresAt) => {
-                    return FakepixelHub.formatTimeRemaining(expiresAt);
-                };
-                
-                const getItemName = (itemId) => {
-                    const item = items.value.find(i => i.id === itemId);
-                    return item?.name || 'Unknown';
-                };
-                
-                // Item Methods
-                const submitItem = async () => {
-                    if (!itemForm.value.name || !user.value) return;
-                    
-                    itemSubmitting.value = true;
-                    
-                    try {
-                        if (editingItem.value) {
-                            await FakepixelHub.updateItem(editingItem.value, itemForm.value, user.value.email);
-                        } else {
-                            await FakepixelHub.addItem(itemForm.value, user.value.email);
-                        }
-                        
-                        resetItemForm();
-                    } catch (error) {
-                        console.error("Submit item error:", error);
-                        alert(error.message);
-                    } finally {
-                        itemSubmitting.value = false;
-                    }
-                };
-                
-                const editItem = (item) => {
-                    editingItem.value = item.id;
-                    itemForm.value = {
-                        name: item.name,
-                        price: item.price,
-                        category: item.category,
-                        icon: item.icon || ''
-                    };
-                };
-                
-                const cancelEdit = () => {
-                    resetItemForm();
-                };
-                
-                const resetItemForm = () => {
-                    editingItem.value = null;
-                    itemForm.value = {
-                        name: '',
-                        price: 0,
-                        category: 'other',
-                        icon: ''
-                    };
-                };
-                
-                const handleDeleteItem = async (itemId) => {
-                    if (!confirm('Are you sure you want to delete this item?')) return;
-                    
-                    try {
-                        await FakepixelHub.deleteItem(itemId, user.value.email);
-                    } catch (error) {
-                        console.error("Delete item error:", error);
-                        alert(error.message);
-                    }
-                };
-                
-                // Admin Methods
-                const handleAddAdmin = async () => {
-                    if (!newAdminEmail.value || !user.value) return;
-                    
-                    adminSubmitting.value = true;
-                    
-                    try {
-                        await FakepixelHub.addAdmin(newAdminEmail.value, user.value.email);
-                        newAdminEmail.value = '';
-                        await loadAdmins();
-                    } catch (error) {
-                        console.error("Add admin error:", error);
-                        alert(error.message);
-                    } finally {
-                        adminSubmitting.value = false;
-                    }
-                };
-                
-                const handleRemoveAdmin = async (email) => {
-                    if (!confirm(`Are you sure you want to remove ${email} as admin?`)) return;
-                    
-                    try {
-                        await FakepixelHub.removeAdmin(email, user.value.email);
-                        await loadAdmins();
-                    } catch (error) {
-                        console.error("Remove admin error:", error);
-                        alert(error.message);
-                    }
-                };
-                
-                const loadAdmins = async () => {
-                    admins.value = await FakepixelHub.getAllAdmins();
-                };
-                
-                // Trade Methods
-                const handleDeleteTrade = async (tradeId) => {
-                    if (!confirm('Are you sure you want to delete this trade?')) return;
-                    
-                    try {
-                        await FakepixelHub.deleteTrade(tradeId, user.value.uid, user.value.email);
-                    } catch (error) {
-                        console.error("Delete trade error:", error);
-                        alert(error.message);
-                    }
-                };
-                
-                // Lifecycle
-                onMounted(() => {
-                    // Auth state listener with admin check
-                    FakepixelHub.auth.onAuthStateChanged(async (firebaseUser) => {
-                        user.value = firebaseUser;
-                        
-                        if (!firebaseUser) {
-                            // Not logged in, redirect
-                            authChecking.value = false;
-                            isAdmin.value = false;
-                            setTimeout(() => {
-                                window.location.href = 'index.html';
-                            }, 2000);
-                            return;
-                        }
-                        
-                        // Check admin status
-                        const adminStatus = await FakepixelHub.checkIsAdmin(firebaseUser.email);
-                        isAdmin.value = adminStatus;
-                        isSuperAdmin.value = firebaseUser.email === FakepixelHub.SUPER_ADMIN_EMAIL;
-                        authChecking.value = false;
-                        
-                        if (!adminStatus) {
-                            // Not an admin, will show access denied and redirect
-                            setTimeout(() => {
-                                window.location.href = 'index.html';
-                            }, 3000);
-                            return;
-                        }
-                        
-                        // Load admins list
-                        await loadAdmins();
-                    });
-                    
-                    // Subscribe to items
-                    unsubscribeItems = FakepixelHub.subscribeToItems((itemsList) => {
-                        items.value = itemsList;
-                    });
-                    
-                    // Subscribe to trades
-                    unsubscribeTrades = FakepixelHub.subscribeToTrades((tradesList) => {
-                        trades.value = tradesList;
-                    });
-                    
-                    // Initialize Lucide icons
-                    lucide.createIcons();
-                });
-                
-                onUnmounted(() => {
-                    if (unsubscribeItems) unsubscribeItems();
-                    if (unsubscribeTrades) unsubscribeTrades();
-                });
-                
-                return {
-                    user,
-                    isAdmin,
-                    isSuperAdmin,
-                    authChecking,
-                    activeTab,
-                    items,
-                    trades,
-                    admins,
-                    itemForm,
-                    editingItem,
-                    itemSubmitting,
-                    itemSearch,
-                    newAdminEmail,
-                    adminSubmitting,
-                    filteredItems,
-                    handleSignOut,
-                    getCategoryColor,
-                    formatPrice,
-                    getTimeRemaining,
-                    getItemName,
-                    submitItem,
-                    editItem,
-                    cancelEdit,
-                    handleDeleteItem,
-                    handleAddAdmin,
-                    handleRemoveAdmin,
-                    handleDeleteTrade
-                };
+        <div class="flex items-center gap-2 sm:gap-4">
+          <a href="index.html" class="nav-link flex items-center gap-2">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Live Trades</span>
+          </a>
+          <a href="calculator.html" class="nav-link flex items-center gap-2">
+            <i data-lucide="calculator" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Calculator</span>
+          </a>
+          <a href="admin.html" class="nav-link active flex items-center gap-2">
+            <i data-lucide="shield" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Admin</span>
+          </a>
+        </div>
+        
+        <div v-if="user && isAdmin" class="flex items-center gap-2">
+          <img :src="user.photoURL" class="w-8 h-8 rounded-full" @error="handleAvatarError">
+          <span class="text-sm hidden sm:block">{{ user.displayName }}</span>
+          <button @click="handleSignOut" class="btn-secondary text-sm py-1 px-3 ml-2">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+    
+    <!-- Access Denied -->
+    <section v-if="!authLoading && !isAdmin" class="py-20 px-4">
+      <div class="max-w-md mx-auto">
+        <div class="glass-card p-8 text-center">
+          <div class="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="shield-x" class="w-10 h-10 text-red-400"></i>
+          </div>
+          <h1 class="text-2xl font-bold mb-2 text-red-400">Access Denied</h1>
+          <p class="text-slate-400 mb-6">Only authorized admins can access this dashboard.</p>
+          
+          <div v-if="!user" class="space-y-4">
+            <p class="text-sm text-slate-500">Sign in with your admin Google account:</p>
+            <button @click="handleGoogleSignIn" class="btn-google w-full justify-center">
+              <svg class="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Sign in with Google
+            </button>
+          </div>
+          
+          <div v-else>
+            <p class="text-sm text-slate-500 mb-4">Signed in as: {{ user.email }}</p>
+            <p class="text-xs text-red-400 mb-4">This email is not in the admin list.</p>
+            <a href="index.html" class="btn-primary inline-flex items-center gap-2">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              Return to Home
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Admin Dashboard -->
+    <section v-else-if="!authLoading && isAdmin" class="py-8 px-4 pb-20">
+      <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 class="text-3xl font-bold mb-1">
+              <span class="gradient-text">Admin Dashboard</span>
+            </h1>
+            <p class="text-slate-400 flex items-center gap-2">
+              <span v-if="isSuperAdmin" class="text-amber-400 flex items-center gap-1">
+                <i data-lucide="crown" class="w-4 h-4"></i>
+                Super Admin
+              </span>
+              <span v-else class="text-violet-400">Admin</span>
+              • {{ user?.email }}
+            </p>
+          </div>
+          
+          <div class="flex flex-wrap gap-3">
+            <button @click="runCleanup" class="btn-secondary flex items-center gap-2" :disabled="cleaningUp">
+              <i data-lucide="trash" class="w-4 h-4" v-if="!cleaningUp"></i>
+              <div v-else class="w-4 h-4 border-2 border-slate-400/30 border-t-slate-400 rounded-full animate-spin"></div>
+              <span class="hidden sm:inline">{{ cleaningUp ? 'Cleaning...' : 'Cleanup Old Trades' }}</span>
+            </button>
+            <button @click="openAddModal" class="btn-primary flex items-center gap-2">
+              <i data-lucide="plus" class="w-5 h-5"></i>
+              Add New Item
+            </button>
+          </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div class="glass-card p-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                <i data-lucide="package" class="w-5 h-5 text-violet-400"></i>
+              </div>
+              <div>
+                <div class="text-2xl font-bold">{{ items.length }}</div>
+                <div class="text-sm text-slate-400">Total Items</div>
+              </div>
+            </div>
+          </div>
+          <div class="glass-card p-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <i data-lucide="trending-up" class="w-5 h-5 text-emerald-400"></i>
+              </div>
+              <div>
+                <div class="text-2xl font-bold">{{ highDemandCount }}</div>
+                <div class="text-sm text-slate-400">High Demand</div>
+              </div>
+            </div>
+          </div>
+          <div class="glass-card p-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                <i data-lucide="repeat" class="w-5 h-5 text-cyan-400"></i>
+              </div>
+              <div>
+                <div class="text-2xl font-bold">{{ trades.length }}</div>
+                <div class="text-sm text-slate-400">Active Trades</div>
+              </div>
+            </div>
+          </div>
+          <div class="glass-card p-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                <i data-lucide="users" class="w-5 h-5 text-amber-400"></i>
+              </div>
+              <div>
+                <div class="text-2xl font-bold">{{ adminsList.length + 1 }}</div>
+                <div class="text-sm text-slate-400">Admins</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Admin Management (Super Admin Only) -->
+        <div v-if="isSuperAdmin" class="glass-card p-6 mb-8">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-5 h-5 text-amber-400"></i>
+            Admin Management
+            <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full">Super Admin Only</span>
+          </h2>
+          
+          <div class="flex gap-2 mb-4">
+            <input v-model="newAdminEmail" type="email" class="input-field flex-1" placeholder="Enter Gmail address to add as admin...">
+            <button @click="handleAddAdmin" class="btn-primary" :disabled="addingAdmin || !newAdminEmail">
+              <span v-if="addingAdmin" class="flex items-center gap-2">
+                <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              </span>
+              <span v-else class="flex items-center gap-2">
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                Add Admin
+              </span>
+            </button>
+          </div>
+          
+          <div v-if="adminError" class="text-red-400 text-sm mb-4 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-4 h-4"></i>
+            {{ adminError }}
+          </div>
+          
+          <div v-if="adminSuccess" class="text-emerald-400 text-sm mb-4 flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-4 h-4"></i>
+            {{ adminSuccess }}
+          </div>
+          
+          <div class="space-y-2">
+            <!-- Super Admin (hardcoded) -->
+            <div class="flex items-center justify-between p-3 bg-dark-700/50 rounded-lg border border-amber-500/30">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <i data-lucide="crown" class="w-4 h-4 text-amber-400"></i>
+                </div>
+                <div>
+                  <div class="font-medium text-amber-400">mahirsayban737@gmail.com</div>
+                  <div class="text-xs text-slate-500">Super Admin (Owner)</div>
+                </div>
+              </div>
+              <span class="text-xs text-slate-500">Cannot remove</span>
+            </div>
+            
+            <!-- Dynamic Admins -->
+            <div v-for="admin in adminsList" :key="admin.id" class="flex items-center justify-between p-3 bg-dark-700/50 rounded-lg">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center">
+                  <i data-lucide="user" class="w-4 h-4 text-violet-400"></i>
+                </div>
+                <div>
+                  <div class="font-medium">{{ admin.email }}</div>
+                  <div class="text-xs text-slate-500">Added by {{ admin.addedBy }}</div>
+                </div>
+              </div>
+              <button @click="handleRemoveAdmin(admin.id)" class="text-red-400 hover:text-red-300 p-2">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Items Table -->
+        <div class="glass-card overflow-hidden mb-8">
+          <div class="p-4 border-b border-dark-600 flex items-center justify-between">
+            <h2 class="text-lg font-bold flex items-center gap-2">
+              <i data-lucide="database" class="w-5 h-5 text-violet-400"></i>
+              Item Database ({{ items.length }})
+            </h2>
+          </div>
+          
+          <div v-if="loading" class="flex justify-center py-12">
+            <div class="spinner"></div>
+          </div>
+          
+          <div v-else-if="items.length === 0" class="text-center py-12">
+            <i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 text-slate-600"></i>
+            <p class="text-slate-400">No items in database</p>
+          </div>
+          
+          <div v-else class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-dark-700/50">
+                <tr>
+                  <th class="text-left px-4 py-3 text-sm font-semibold text-slate-400">Item</th>
+                  <th class="text-left px-4 py-3 text-sm font-semibold text-slate-400">Value</th>
+                  <th class="text-left px-4 py-3 text-sm font-semibold text-slate-400 hidden sm:table-cell">Demand</th>
+                  <th class="text-left px-4 py-3 text-sm font-semibold text-slate-400 hidden sm:table-cell">Trend</th>
+                  <th class="text-right px-4 py-3 text-sm font-semibold text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in items" :key="item.id" class="border-t border-dark-700 hover:bg-dark-700/30 transition-colors">
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-3">
+                      <img v-if="item.imageUrl" :src="item.imageUrl" class="w-10 h-10 rounded-lg object-cover" :alt="item.name" style="image-rendering: pixelated;" @error="handleImageError">
+                      <div v-else class="w-10 h-10 rounded-lg bg-dark-600 flex items-center justify-center">
+                        <i data-lucide="box" class="w-5 h-5 text-slate-500"></i>
+                      </div>
+                      <div>
+                        <div class="font-medium">{{ item.name }}</div>
+                        <div class="text-xs text-slate-500 sm:hidden">{{ item.demand }} • {{ item.trend }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="font-semibold text-violet-400">{{ formatNumber(item.value) }}</span>
+                  </td>
+                  <td class="px-4 py-3 hidden sm:table-cell">
+                    <span :class="getDemandClass(item.demand)" class="demand-tag">{{ item.demand || 'N/A' }}</span>
+                  </td>
+                  <td class="px-4 py-3 hidden sm:table-cell">
+                    <span :class="getTrendClass(item.trend)" class="flex items-center gap-1">
+                      <i :data-lucide="getTrendIcon(item.trend)" class="w-4 h-4"></i>
+                      {{ getTrendText(item.trend) }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-2">
+                      <button @click="openEditModal(item)" class="p-2 hover:bg-dark-600 rounded-lg text-slate-400 hover:text-violet-400 transition-colors">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                      </button>
+                      <button @click="confirmDelete(item)" class="p-2 hover:bg-dark-600 rounded-lg text-slate-400 hover:text-red-400 transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Trades Management -->
+        <div class="glass-card overflow-hidden">
+          <div class="p-4 border-b border-dark-600 flex items-center justify-between">
+            <h2 class="text-lg font-bold flex items-center gap-2">
+              <i data-lucide="repeat" class="w-5 h-5 text-cyan-400"></i>
+              Active Trades ({{ trades.length }})
+            </h2>
+            <span class="text-sm text-slate-500">Auto-expires after 7 days</span>
+          </div>
+          
+          <div v-if="trades.length === 0" class="text-center py-12">
+            <i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 text-slate-600"></i>
+            <p class="text-slate-400">No active trades</p>
+          </div>
+          
+          <div v-else class="divide-y divide-dark-700 max-h-96 overflow-y-auto">
+            <div v-for="trade in trades" :key="trade.id" class="p-4 flex items-center justify-between hover:bg-dark-700/30 transition-colors">
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <img :src="trade.userPhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(trade.username || 'User')" class="w-10 h-10 rounded-full object-cover flex-shrink-0" @error="handleAvatarError">
+                <div class="min-w-0 flex-1">
+                  <div class="font-medium truncate text-violet-300">{{ trade.username || 'Anonymous' }}</div>
+                  <div class="text-sm text-slate-400 truncate">{{ trade.description || 'No description' }}</div>
+                  <div class="text-xs text-slate-500 flex flex-wrap items-center gap-2 mt-1">
+                    <span>{{ trade.offering?.length || 0 }} giving</span>
+                    <span>•</span>
+                    <span>{{ trade.seeking?.length || 0 }} wanting</span>
+                    <span>•</span>
+                    <span :class="{ 'text-red-400': isExpiringSoon(trade.timestamp) }">
+                      {{ getDaysUntilExpiry(trade.timestamp) }}d left
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0 ml-2">
+                <span class="text-xs text-slate-500 hidden sm:block">{{ formatTime(trade.timestamp) }}</span>
+                <button @click="deleteTrade(trade.id)" class="p-2 hover:bg-dark-600 rounded-lg text-slate-400 hover:text-red-400 transition-colors" title="Delete Trade">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Add/Edit Item Modal -->
+    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-content glass-modal max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6 sticky top-0 bg-dark-800/95 backdrop-blur py-2 -mt-2 z-10">
+          <h3 class="text-xl font-bold">{{ editingItem ? 'Edit Item' : 'Add New Item' }}</h3>
+          <button @click="closeModal" class="text-slate-400 hover:text-white">
+            <i data-lucide="x" class="w-6 h-6"></i>
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          <!-- Minecraft Icon Picker -->
+          <div>
+            <label class="block text-sm text-slate-400 mb-2">
+              <i data-lucide="search" class="w-4 h-4 inline mr-1"></i>
+              Search Minecraft Icons
+            </label>
+            <input v-model="mcIconSearch" type="text" class="input-field" placeholder="Type to search (diamond, sword, netherite...)">
+            
+            <div v-if="filteredMcIcons.length" class="mc-icon-grid mt-3">
+              <div v-for="icon in filteredMcIcons.slice(0, 20)" :key="icon.name" @click="selectMcIcon(icon)" :class="{ selected: selectedMcIcon?.name === icon.name }" class="mc-icon-item">
+                <img :src="icon.url" :alt="icon.displayName" @error="handleImageError">
+                <span>{{ icon.displayName }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm text-slate-400 mb-2">Item Name *</label>
+              <input v-model="formData.name" type="text" class="input-field" placeholder="e.g., Diamond Sword">
+            </div>
+            
+            <div>
+              <label class="block text-sm text-slate-400 mb-2">Value (Purse) *</label>
+              <input v-model.number="formData.value" type="number" class="input-field" placeholder="e.g., 50000">
+            </div>
+          </div>
+          
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm text-slate-400 mb-2">Demand Level</label>
+              <select v-model="formData.demand" class="input-field">
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm text-slate-400 mb-2">Price Trend</label>
+              <select v-model="formData.trend" class="input-field">
+                <option value="up">Rising ↑</option>
+                <option value="stable">Stable →</option>
+                <option value="down">Falling ↓</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Image Upload Section - FIXED -->
+          <div>
+            <label class="block text-sm text-slate-400 mb-2">Item Image</label>
+            
+            <div class="grid sm:grid-cols-2 gap-4">
+              <!-- URL Input -->
+              <div>
+                <input v-model="formData.imageUrl" type="url" class="input-field mb-2" placeholder="Image URL (optional)">
+                <div class="text-xs text-slate-500">Paste direct image URL</div>
+              </div>
+              
+              <!-- File Upload Button - FIXED FOR S24 FE -->
+              <div class="relative">
+                <input 
+                  ref="fileInput" 
+                  type="file" 
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  @change="handleFileUpload"
+                >
+                <div class="upload-area" :class="{ 'border-violet-500 bg-violet-500/10': uploading }">
+                  <div v-if="uploading" class="flex items-center justify-center gap-2">
+                    <div class="spinner w-5 h-5"></div>
+                    <span class="text-sm">Uploading...</span>
+                  </div>
+                  <div v-else class="text-center">
+                    <i data-lucide="image-plus" class="w-8 h-8 mx-auto mb-2 text-violet-400"></i>
+                    <div class="text-sm text-violet-400 font-medium">Choose Image</div>
+                    <div class="text-xs text-slate-500">PNG, JPG up to 5MB</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-if="uploadError" class="text-red-400 text-sm mt-2 flex items-center gap-2">
+              <i data-lucide="alert-circle" class="w-4 h-4"></i>
+              {{ uploadError }}
+            </div>
+            
+            <!-- Image Preview -->
+            <div v-if="formData.imageUrl" class="mt-4 flex items-center gap-4 p-3 bg-dark-700 rounded-lg">
+              <img :src="formData.imageUrl" class="w-16 h-16 rounded-lg object-cover border border-dark-600" style="image-rendering: pixelated;" @error="handlePreviewError">
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium truncate">Image Preview</div>
+                <div class="text-xs text-slate-500 truncate">{{ formData.imageUrl.substring(0, 50) }}...</div>
+              </div>
+              <button @click="formData.imageUrl = ''" class="text-red-400 hover:text-red-300 p-2 hover:bg-dark-600 rounded-lg">
+                <i data-lucide="x" class="w-5 h-5"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div v-if="formError" class="text-red-400 text-sm flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-4 h-4"></i>
+            {{ formError }}
+          </div>
+          
+          <div class="flex gap-3 pt-4">
+            <button @click="closeModal" class="btn-secondary flex-1">Cancel</button>
+            <button @click="saveItem" class="btn-primary flex-1" :disabled="saving">
+              <span v-if="saving" class="flex items-center justify-center gap-2">
+                <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Saving...
+              </span>
+              <span v-else>{{ editingItem ? 'Update Item' : 'Add Item' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+      <div class="modal-content glass-modal">
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="alert-triangle" class="w-8 h-8 text-red-400"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-2">Delete Item?</h3>
+          <p class="text-slate-400 mb-6">
+            Are you sure you want to delete <span class="text-white font-semibold">{{ itemToDelete?.name }}</span>?
+          </p>
+          <div class="flex gap-3">
+            <button @click="showDeleteModal = false" class="btn-secondary flex-1">Cancel</button>
+            <button @click="deleteItem" class="btn-danger flex-1">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div v-if="cleanupResult !== null" class="fixed bottom-4 right-4 glass-card px-4 py-3 flex items-center gap-3 animate-slideInUp z-50">
+      <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+      <span>Removed {{ cleanupResult }} expired trades</span>
+      <button @click="cleanupResult = null" class="text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+  
+  <script src="app.js"></script>
+  
+  <script>
+    const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+    
+    createApp({
+      setup() {
+        const user = ref(null);
+        const authLoading = ref(true);
+        const isAdmin = ref(false);
+        const isSuperAdmin = ref(false);
+        
+        const items = ref([]);
+        const trades = ref([]);
+        const adminsList = ref([]);
+        const loading = ref(true);
+        
+        const showModal = ref(false);
+        const showDeleteModal = ref(false);
+        const editingItem = ref(null);
+        const itemToDelete = ref(null);
+        const saving = ref(false);
+        const formError = ref('');
+        
+        const newAdminEmail = ref('');
+        const addingAdmin = ref(false);
+        const adminError = ref('');
+        const adminSuccess = ref('');
+        
+        const mcIconSearch = ref('');
+        const selectedMcIcon = ref(null);
+        
+        const fileInput = ref(null);
+        const uploading = ref(false);
+        const uploadError = ref('');
+        
+        const cleaningUp = ref(false);
+        const cleanupResult = ref(null);
+        
+        const formData = ref({
+          name: '',
+          value: 0,
+          demand: 'Medium',
+          trend: 'stable',
+          imageUrl: ''
+        });
+        
+        let unsubscribeItems = null;
+        let unsubscribeTrades = null;
+        let unsubscribeAuth = null;
+        let unsubscribeAdmins = null;
+        
+        const filteredMcIcons = computed(() => {
+          return window.FakepixelHub.searchMinecraftIcons(mcIconSearch.value);
+        });
+        
+        const highDemandCount = computed(() => {
+          return items.value.filter(i => i.demand?.toLowerCase() === 'high').length;
+        });
+        
+        const formatNumber = (num) => window.FakepixelHub.formatNumber(num);
+        const formatTime = (timestamp) => window.FakepixelHub.formatRelativeTime(timestamp);
+        const getDaysUntilExpiry = (timestamp) => window.FakepixelHub.getDaysUntilExpiry(timestamp);
+        const isExpiringSoon = (timestamp) => window.FakepixelHub.isExpiringSoon(timestamp);
+        const getDemandClass = (demand) => window.FakepixelHub.getDemandClass(demand);
+        
+        const getTrendInfo = (trend) => window.FakepixelHub.getTrendInfo(trend);
+        const getTrendClass = (trend) => getTrendInfo(trend).class;
+        const getTrendIcon = (trend) => getTrendInfo(trend).icon;
+        const getTrendText = (trend) => getTrendInfo(trend).text;
+        
+        const handleGoogleSignIn = async () => {
+          authLoading.value = true;
+          await window.FakepixelHub.signInWithGoogle();
+        };
+        
+        const handleSignOut = async () => {
+          await window.FakepixelHub.signOut();
+          user.value = null;
+          isAdmin.value = false;
+          isSuperAdmin.value = false;
+        };
+        
+        const selectMcIcon = (icon) => {
+          selectedMcIcon.value = icon;
+          formData.value.name = icon.displayName;
+          formData.value.imageUrl = icon.url;
+          mcIconSearch.value = '';
+          refreshIcons();
+        };
+        
+        // FIXED File Upload Handler
+        const handleFileUpload = async (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+          
+          uploading.value = true;
+          uploadError.value = '';
+          
+          const result = await window.FakepixelHub.uploadItemImage(file);
+          
+          if (result.success) {
+            formData.value.imageUrl = result.url;
+          } else {
+            uploadError.value = result.error;
+          }
+          
+          uploading.value = false;
+          
+          // Reset file input
+          if (fileInput.value) {
+            fileInput.value.value = '';
+          }
+          
+          refreshIcons();
+        };
+        
+        const handleImageError = (e) => { e.target.src = 'https://via.placeholder.com/40?text=?'; };
+        const handleAvatarError = (e) => { e.target.src = 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff'; };
+        const handlePreviewError = (e) => { e.target.src = 'https://via.placeholder.com/64?text=Error'; };
+        
+        const openAddModal = () => {
+          editingItem.value = null;
+          selectedMcIcon.value = null;
+          mcIconSearch.value = '';
+          uploadError.value = '';
+          formData.value = { name: '', value: 0, demand: 'Medium', trend: 'stable', imageUrl: '' };
+          formError.value = '';
+          showModal.value = true;
+          refreshIcons();
+        };
+        
+        const openEditModal = (item) => {
+          editingItem.value = item;
+          selectedMcIcon.value = null;
+          mcIconSearch.value = '';
+          uploadError.value = '';
+          formData.value = {
+            name: item.name || '',
+            value: item.value || 0,
+            demand: item.demand || 'Medium',
+            trend: item.trend || 'stable',
+            imageUrl: item.imageUrl || ''
+          };
+          formError.value = '';
+          showModal.value = true;
+          refreshIcons();
+        };
+        
+        const closeModal = () => {
+          showModal.value = false;
+          editingItem.value = null;
+          selectedMcIcon.value = null;
+          mcIconSearch.value = '';
+          uploadError.value = '';
+        };
+        
+        const saveItem = async () => {
+          formError.value = '';
+          
+          if (!formData.value.name.trim()) {
+            formError.value = 'Item name is required';
+            return;
+          }
+          
+          if (!formData.value.value || formData.value.value <= 0) {
+            formError.value = 'Value must be greater than 0';
+            return;
+          }
+          
+          saving.value = true;
+          
+          try {
+            let result;
+            if (editingItem.value) {
+              result = await window.FakepixelHub.updateItem(editingItem.value.id, formData.value);
+            } else {
+              result = await window.FakepixelHub.createItem(formData.value);
             }
-        }).mount('#app');
+            
+            if (result.success) {
+              closeModal();
+            } else {
+              formError.value = result.error || 'Failed to save item';
+            }
+          } catch (error) {
+            formError.value = 'An error occurred. Please try again.';
+          }
+          
+          saving.value = false;
+        };
         
-        // Re-init icons when Vue updates DOM
-        setInterval(() => lucide.createIcons(), 1000);
-    </script>
+        const confirmDelete = (item) => {
+          itemToDelete.value = item;
+          showDeleteModal.value = true;
+          refreshIcons();
+        };
+        
+        const deleteItem = async () => {
+          if (!itemToDelete.value) return;
+          await window.FakepixelHub.deleteItem(itemToDelete.value.id);
+          showDeleteModal.value = false;
+          itemToDelete.value = null;
+        };
+        
+        const deleteTrade = async (tradeId) => {
+          if (confirm('Delete this trade?')) {
+            await window.FakepixelHub.deleteTrade(tradeId, false);
+          }
+        };
+        
+        const handleAddAdmin = async () => {
+          adminError.value = '';
+          adminSuccess.value = '';
+          addingAdmin.value = true;
+          
+          const result = await window.FakepixelHub.addAdmin(newAdminEmail.value, user.value?.email);
+          
+          if (result.success) {
+            adminSuccess.value = `${newAdminEmail.value} has been added as admin.`;
+            newAdminEmail.value = '';
+            setTimeout(() => adminSuccess.value = '', 3000);
+          } else {
+            adminError.value = result.error;
+          }
+          
+          addingAdmin.value = false;
+        };
+        
+        const handleRemoveAdmin = async (adminId) => {
+          if (confirm('Remove this admin?')) {
+            await window.FakepixelHub.removeAdmin(adminId);
+          }
+        };
+        
+        const runCleanup = async () => {
+          cleaningUp.value = true;
+          const result = await window.FakepixelHub.manualCleanup();
+          cleaningUp.value = false;
+          
+          if (result.success) {
+            cleanupResult.value = result.count;
+            setTimeout(() => { cleanupResult.value = null; }, 3000);
+          }
+          refreshIcons();
+        };
+        
+        const refreshIcons = () => { setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50); };
+        
+        onMounted(async () => {
+          if (window.FakepixelHub.initFirebase()) {
+            // Step 1: Handle redirect result FIRST (critical for mobile)
+            await window.FakepixelHub.handleRedirectResult();
+            
+            // Step 2: Set up auth state listener (SIMPLE like v3.0)
+            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
+              user.value = userData;
+              
+              if (userData) {
+                // Check if Super Admin (hardcoded email)
+                isSuperAdmin.value = window.FakepixelHub.isSuperAdmin(userData.email);
+                // Check if any admin (Super Admin OR in admins list)
+                isAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
+              } else {
+                isAdmin.value = false;
+                isSuperAdmin.value = false;
+              }
+              
+              authLoading.value = false;
+              refreshIcons();
+            });
+            
+            // Items listener
+            unsubscribeItems = window.FakepixelHub.subscribeToItems((data) => {
+              items.value = data;
+              loading.value = false;
+              refreshIcons();
+            });
+            
+            // Trades listener
+            unsubscribeTrades = window.FakepixelHub.subscribeToTrades((data) => {
+              trades.value = data;
+              refreshIcons();
+            });
+            
+            // Admins list listener
+            unsubscribeAdmins = window.FakepixelHub.subscribeToAdmins((data) => {
+              adminsList.value = data;
+              refreshIcons();
+            });
+          } else {
+            loading.value = false;
+            authLoading.value = false;
+          }
+          
+          refreshIcons();
+        });
+        
+        onUnmounted(() => {
+          if (unsubscribeItems) unsubscribeItems();
+          if (unsubscribeTrades) unsubscribeTrades();
+          if (unsubscribeAuth) unsubscribeAuth();
+          if (unsubscribeAdmins) unsubscribeAdmins();
+        });
+        
+        watch([showModal, showDeleteModal, isAdmin], refreshIcons);
+        
+        return {
+          user, authLoading, isAdmin, isSuperAdmin, items, trades, adminsList, loading,
+          showModal, showDeleteModal, editingItem, itemToDelete, formData, formError, saving,
+          newAdminEmail, addingAdmin, adminError, adminSuccess,
+          mcIconSearch, selectedMcIcon, filteredMcIcons,
+          fileInput, uploading, uploadError, cleaningUp, cleanupResult, highDemandCount,
+          formatNumber, formatTime, getDaysUntilExpiry, isExpiringSoon, getDemandClass,
+          getTrendClass, getTrendIcon, getTrendText,
+          handleGoogleSignIn, handleSignOut, selectMcIcon, handleFileUpload,
+          handleImageError, handleAvatarError, handlePreviewError,
+          openAddModal, openEditModal, closeModal, saveItem, confirmDelete, deleteItem, deleteTrade,
+          handleAddAdmin, handleRemoveAdmin, runCleanup
+        };
+      }
+    }).mount('#app');
+  </script>
 </body>
 </html>

@@ -1,681 +1,620 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fakepixel Trading Hub v2.1 | Trade Calculator</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        
-        * {
-            font-family: 'Inter', sans-serif;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#020617">
+  <title>Trade Calculator - Fakepixel Hub</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: { 900: '#020617', 800: '#0f172a', 700: '#1e293b', 600: '#334155' }
+          }
         }
-        
-        body {
-            background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e1b4b 100%);
-            min-height: 100vh;
-        }
-        
-        .minecraft-item {
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-        }
-        
-        .glass-card {
-            background: rgba(15, 23, 42, 0.5);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(71, 85, 105, 0.3);
-        }
-        
-        .glass-card-hover:hover {
-            background: rgba(15, 23, 42, 0.7);
-            border-color: rgba(139, 92, 246, 0.3);
-            box-shadow: 0 0 30px rgba(139, 92, 246, 0.1);
-        }
-        
-        .glow-purple {
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
-        }
-        
-        .glow-green {
-            box-shadow: 0 0 30px rgba(34, 197, 94, 0.4);
-        }
-        
-        .glow-red {
-            box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
-        }
-        
-        .glow-yellow {
-            box-shadow: 0 0 30px rgba(234, 179, 8, 0.4);
-        }
-        
-        .scrollbar-thin::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .scrollbar-thin::-webkit-scrollbar-track {
-            background: #1e293b;
-        }
-        
-        .scrollbar-thin::-webkit-scrollbar-thumb {
-            background: #8b5cf6;
-            border-radius: 3px;
-        }
-        
-        @keyframes pulse-green {
-            0%, 100% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.3); }
-            50% { box-shadow: 0 0 50px rgba(34, 197, 94, 0.6); }
-        }
-        
-        @keyframes pulse-red {
-            0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
-            50% { box-shadow: 0 0 50px rgba(239, 68, 68, 0.6); }
-        }
-        
-        @keyframes pulse-yellow {
-            0%, 100% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.3); }
-            50% { box-shadow: 0 0 50px rgba(234, 179, 8, 0.6); }
-        }
-        
-        .animate-pulse-green {
-            animation: pulse-green 2s ease-in-out infinite;
-        }
-        
-        .animate-pulse-red {
-            animation: pulse-red 2s ease-in-out infinite;
-        }
-        
-        .animate-pulse-yellow {
-            animation: pulse-yellow 2s ease-in-out infinite;
-        }
-        
-        @keyframes scale-in {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        
-        .animate-scale-in {
-            animation: scale-in 0.3s ease-out;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-5px) rotate(2deg); }
-        }
-        
-        .animate-float {
-            animation: float 3s ease-in-out infinite;
-        }
-    </style>
+      }
+    }
+  </script>
 </head>
-<body class="text-white antialiased">
-    <div id="app">
-        <!-- Navigation -->
-        <nav class="glass-card sticky top-0 z-50 border-b border-slate-800">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between h-16">
-                    <!-- Logo -->
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-lg flex items-center justify-center glow-purple">
-                            <i data-lucide="gem" class="w-6 h-6 text-white"></i>
-                        </div>
-                        <div>
-                            <h1 class="text-xl font-bold bg-gradient-to-r from-purple-400 to-violet-300 bg-clip-text text-transparent">
-                                Fakepixel Hub
-                            </h1>
-                            <p class="text-xs text-slate-500">v2.1 Trading Marketplace</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Nav Links -->
-                    <div class="hidden md:flex items-center space-x-1">
-                        <a href="index.html" class="px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 font-medium transition-all">
-                            <span class="flex items-center gap-2">
-                                <i data-lucide="store" class="w-4 h-4"></i>
-                                Marketplace
-                            </span>
-                        </a>
-                        <a href="calculator.html" class="px-4 py-2 rounded-lg bg-purple-500/20 text-purple-300 font-medium transition-all">
-                            <span class="flex items-center gap-2">
-                                <i data-lucide="calculator" class="w-4 h-4"></i>
-                                Calculator
-                            </span>
-                        </a>
-                        <!-- Admin Link (Only visible to admins) -->
-                        <a v-if="isAdmin" href="admin.html" class="px-4 py-2 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 font-medium transition-all">
-                            <span class="flex items-center gap-2">
-                                <i data-lucide="shield" class="w-4 h-4"></i>
-                                Admin
-                            </span>
-                        </a>
-                    </div>
-                    
-                    <!-- Auth Section -->
-                    <div class="flex items-center space-x-4">
-                        <template v-if="user">
-                            <div class="flex items-center space-x-3">
-                                <img :src="user.photoURL || 'https://via.placeholder.com/40'" 
-                                     class="w-9 h-9 rounded-full border-2 border-purple-500/50">
-                                <div class="hidden sm:block">
-                                    <p class="text-sm font-medium text-white">{{ user.displayName }}</p>
-                                    <p class="text-xs text-slate-400">{{ user.email }}</p>
-                                </div>
-                                <button @click="handleSignOut" 
-                                        class="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                                    <i data-lucide="log-out" class="w-5 h-5"></i>
-                                </button>
-                            </div>
-                        </template>
-                        <template v-else>
-                            <button @click="handleSignIn" 
-                                    class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 rounded-lg font-medium transition-all shadow-lg shadow-purple-500/20">
-                                <i data-lucide="log-in" class="w-4 h-4"></i>
-                                Sign In
-                            </button>
-                        </template>
-                    </div>
-                </div>
-            </div>
-        </nav>
-
-        <!-- Mobile Nav -->
-        <div class="md:hidden glass-card border-b border-slate-800 px-4 py-2 flex justify-center space-x-2">
-            <a href="index.html" class="px-3 py-1.5 rounded-lg text-slate-400 text-sm font-medium">
-                Marketplace
-            </a>
-            <a href="calculator.html" class="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 text-sm font-medium">
-                Calculator
-            </a>
-            <a v-if="isAdmin" href="admin.html" class="px-3 py-1.5 rounded-lg text-amber-400 text-sm font-medium">
-                Admin
-            </a>
+<body class="bg-dark-900 min-h-screen">
+  <div id="app">
+    <!-- Navbar -->
+    <nav class="navbar px-4 py-3">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <a href="index.html" class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+            <i data-lucide="gem" class="w-6 h-6 text-white"></i>
+          </div>
+          <span class="text-xl font-bold gradient-text hidden sm:block">Fakepixel Hub</span>
+        </a>
+        
+        <div class="flex items-center gap-2 sm:gap-4">
+          <a href="index.html" class="nav-link flex items-center gap-2">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Live Trades</span>
+          </a>
+          <a href="calculator.html" class="nav-link active flex items-center gap-2">
+            <i data-lucide="calculator" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Calculator</span>
+          </a>
+          <a v-if="isUserAdmin" href="admin.html" class="nav-link flex items-center gap-2">
+            <i data-lucide="shield" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Admin</span>
+          </a>
         </div>
-
-        <!-- Hero Section -->
-        <div class="relative overflow-hidden">
-            <div class="absolute inset-0 bg-gradient-to-b from-purple-600/10 to-transparent"></div>
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center relative">
-                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm mb-6">
-                    <i data-lucide="calculator" class="w-4 h-4"></i>
-                    Trade Fairness Calculator
-                </div>
-                <h2 class="text-4xl md:text-5xl font-bold mb-4">
-                    <span class="bg-gradient-to-r from-white via-purple-200 to-violet-300 bg-clip-text text-transparent">
-                        Is Your Trade
-                    </span>
-                    <br>
-                    <span class="text-slate-400">Fair?</span>
-                </h2>
-                <p class="text-slate-400 max-w-2xl mx-auto">
-                    Compare what you're offering vs what you're seeking to determine if a trade is fair, 
-                    a win, or a loss based on current market prices.
-                </p>
-            </div>
+        
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          <span class="text-sm text-emerald-400 font-medium hidden sm:block">Live</span>
         </div>
-
-        <!-- Calculator Section -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Offering Column -->
-                <div class="glass-card rounded-2xl overflow-hidden">
-                    <div class="p-4 bg-gradient-to-r from-purple-600/20 to-purple-500/10 border-b border-purple-500/20">
-                        <h3 class="text-lg font-semibold text-purple-300 flex items-center gap-2">
-                            <i data-lucide="package" class="w-5 h-5"></i>
-                            What You're Offering
-                        </h3>
-                    </div>
-                    <div class="p-4 space-y-4 max-h-[500px] overflow-y-auto scrollbar-thin">
-                        <div v-for="(item, index) in offering" :key="index"
-                             class="bg-slate-800/50 rounded-xl p-4 animate-scale-in">
-                            <div class="flex items-center gap-3 mb-3">
-                                <img :src="getItemIcon(item.itemId)" class="w-12 h-12 minecraft-item bg-slate-900 rounded-lg p-1">
-                                <div class="flex-1">
-                                    <select v-model="item.itemId"
-                                            class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500">
-                                        <option value="">Select item...</option>
-                                        <option v-for="i in items" :key="i.id" :value="i.id">{{ i.name }}</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div class="flex-1">
-                                    <label class="text-xs text-slate-500 mb-1 block">Quantity</label>
-                                    <input v-model.number="item.quantity" type="number" min="1"
-                                           class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500">
-                                </div>
-                                <div class="flex-1">
-                                    <label class="text-xs text-slate-500 mb-1 block">Value</label>
-                                    <p class="px-3 py-2 bg-slate-900/30 rounded-lg text-green-400 font-medium">
-                                        {{ formatPrice(getItemValue(item)) }}
-                                    </p>
-                                </div>
-                                <button @click="removeOffering(index)"
-                                        class="mt-4 p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-all">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <button @click="addOffering"
-                                class="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:border-purple-500 hover:text-purple-400 transition-all flex items-center justify-center gap-2">
-                            <i data-lucide="plus" class="w-4 h-4"></i>
-                            Add Item
-                        </button>
-                    </div>
-                    
-                    <!-- Offering Total -->
-                    <div class="p-4 bg-purple-500/10 border-t border-purple-500/20">
-                        <div class="flex items-center justify-between">
-                            <span class="text-purple-300 font-medium">Total Value:</span>
-                            <span class="text-2xl font-bold text-purple-400">{{ formatPrice(offeringTotal) }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Result Column (Center) -->
-                <div class="flex flex-col justify-center items-center py-8">
-                    <!-- Comparison Arrow -->
-                    <div class="glass-card rounded-full p-4 mb-6">
-                        <i data-lucide="arrows-left-right" class="w-8 h-8 text-purple-400"></i>
-                    </div>
-                    
-                    <!-- Result Display -->
-                    <div class="w-full">
-                        <div v-if="tradeResult" 
-                             class="glass-card rounded-2xl p-8 text-center animate-scale-in"
-                             :class="{
-                                 'border-green-500/50 animate-pulse-green': tradeResult.result === 'Win',
-                                 'border-red-500/50 animate-pulse-red': tradeResult.result === 'Loss',
-                                 'border-yellow-500/50 animate-pulse-yellow': tradeResult.result === 'Fair'
-                             }">
-                            <div class="text-6xl mb-4 animate-float">{{ tradeResult.emoji }}</div>
-                            <h3 class="text-3xl font-bold mb-2"
-                                :class="{
-                                    'text-green-400': tradeResult.result === 'Win',
-                                    'text-red-400': tradeResult.result === 'Loss',
-                                    'text-yellow-400': tradeResult.result === 'Fair'
-                                }">
-                                {{ tradeResult.result }}!
-                            </h3>
-                            <p class="text-slate-400 mb-4">{{ tradeResult.message }}</p>
-                            
-                            <!-- Difference -->
-                            <div class="bg-slate-800/50 rounded-xl p-4">
-                                <p class="text-sm text-slate-500 mb-1">Value Difference</p>
-                                <p class="text-xl font-bold"
-                                   :class="{
-                                       'text-green-400': valueDifference > 0,
-                                       'text-red-400': valueDifference < 0,
-                                       'text-yellow-400': valueDifference === 0
-                                   }">
-                                    {{ valueDifference > 0 ? '+' : '' }}{{ formatPrice(valueDifference) }} coins
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div v-else class="glass-card rounded-2xl p-8 text-center">
-                            <div class="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <i data-lucide="help-circle" class="w-8 h-8 text-slate-500"></i>
-                            </div>
-                            <h3 class="text-xl font-semibold text-slate-300 mb-2">Add Items to Compare</h3>
-                            <p class="text-slate-500 text-sm">
-                                Add items to both sides to see if the trade is fair.
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <!-- Action Buttons -->
-                    <div class="flex gap-3 mt-6">
-                        <button @click="clearAll"
-                                class="flex items-center gap-2 px-6 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-400 hover:text-white hover:border-slate-600 transition-all">
-                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                            Reset
-                        </button>
-                        <button @click="swapSides"
-                                class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600/20 to-violet-600/20 border border-purple-500/30 rounded-xl text-purple-300 hover:from-purple-600 hover:to-violet-600 hover:text-white transition-all">
-                            <i data-lucide="repeat" class="w-4 h-4"></i>
-                            Swap Sides
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Seeking Column -->
-                <div class="glass-card rounded-2xl overflow-hidden">
-                    <div class="p-4 bg-gradient-to-r from-violet-600/20 to-violet-500/10 border-b border-violet-500/20">
-                        <h3 class="text-lg font-semibold text-violet-300 flex items-center gap-2">
-                            <i data-lucide="search" class="w-5 h-5"></i>
-                            What You're Seeking
-                        </h3>
-                    </div>
-                    <div class="p-4 space-y-4 max-h-[500px] overflow-y-auto scrollbar-thin">
-                        <div v-for="(item, index) in seeking" :key="index"
-                             class="bg-slate-800/50 rounded-xl p-4 animate-scale-in">
-                            <div class="flex items-center gap-3 mb-3">
-                                <img :src="getItemIcon(item.itemId)" class="w-12 h-12 minecraft-item bg-slate-900 rounded-lg p-1">
-                                <div class="flex-1">
-                                    <select v-model="item.itemId"
-                                            class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500">
-                                        <option value="">Select item...</option>
-                                        <option v-for="i in items" :key="i.id" :value="i.id">{{ i.name }}</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div class="flex-1">
-                                    <label class="text-xs text-slate-500 mb-1 block">Quantity</label>
-                                    <input v-model.number="item.quantity" type="number" min="1"
-                                           class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500">
-                                </div>
-                                <div class="flex-1">
-                                    <label class="text-xs text-slate-500 mb-1 block">Value</label>
-                                    <p class="px-3 py-2 bg-slate-900/30 rounded-lg text-green-400 font-medium">
-                                        {{ formatPrice(getItemValue(item)) }}
-                                    </p>
-                                </div>
-                                <button @click="removeSeeking(index)"
-                                        class="mt-4 p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-all">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <button @click="addSeeking"
-                                class="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:border-violet-500 hover:text-violet-400 transition-all flex items-center justify-center gap-2">
-                            <i data-lucide="plus" class="w-4 h-4"></i>
-                            Add Item
-                        </button>
-                    </div>
-                    
-                    <!-- Seeking Total -->
-                    <div class="p-4 bg-violet-500/10 border-t border-violet-500/20">
-                        <div class="flex items-center justify-between">
-                            <span class="text-violet-300 font-medium">Total Value:</span>
-                            <span class="text-2xl font-bold text-violet-400">{{ formatPrice(seekingTotal) }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Item Price Reference -->
-            <div class="glass-card rounded-2xl mt-8 overflow-hidden">
-                <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-                    <h3 class="text-lg font-semibold text-white flex items-center gap-2">
-                        <i data-lucide="book-open" class="w-5 h-5 text-purple-400"></i>
-                        Item Price Reference
-                    </h3>
-                    <div class="relative">
-                        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input v-model="priceSearch" type="text" placeholder="Search items..."
-                               class="bg-slate-800/50 border border-slate-700 rounded-lg pl-9 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 max-h-[300px] overflow-y-auto scrollbar-thin">
-                    <div v-for="item in filteredItems" :key="item.id"
-                         class="bg-slate-800/30 rounded-xl p-3 flex items-center gap-3 hover:bg-slate-800/50 transition-colors cursor-pointer"
-                         @click="quickAdd(item)">
-                        <img :src="item.icon || 'https://mc-heads.net/item/diamond'" 
-                             class="w-10 h-10 minecraft-item">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-white truncate">{{ item.name }}</p>
-                            <p class="text-xs text-green-400">{{ formatPrice(item.price) }}</p>
-                        </div>
-                    </div>
-                    <div v-if="filteredItems.length === 0" class="col-span-full text-center py-8 text-slate-500">
-                        No items found. Check admin panel to add items.
-                    </div>
-                </div>
-            </div>
+      </div>
+    </nav>
+    
+    <!-- Calculator Section -->
+    <section class="py-8 sm:py-12 px-4">
+      <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+          <h1 class="text-3xl sm:text-4xl font-bold mb-2">
+            <span class="gradient-text">Trade Calculator</span>
+          </h1>
+          <p class="text-slate-400">Calculate trade fairness using real-time market prices</p>
         </div>
-
-        <!-- Footer -->
-        <footer class="glass-card border-t border-slate-800 mt-16">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-violet-600 rounded-lg flex items-center justify-center">
-                            <i data-lucide="gem" class="w-4 h-4 text-white"></i>
-                        </div>
-                        <span class="font-semibold text-white">Fakepixel Trading Hub v2.1</span>
-                    </div>
-                    <p class="text-sm text-slate-500">© 2024 All rights reserved. Not affiliated with Mojang or Microsoft.</p>
+        
+        <!-- Loading State -->
+        <div v-if="loading" class="flex justify-center py-12">
+          <div class="spinner"></div>
+        </div>
+        
+        <!-- No Items State -->
+        <div v-else-if="items.length === 0" class="empty-state glass-card max-w-md mx-auto">
+          <i data-lucide="database" class="w-16 h-16 mx-auto mb-4 text-slate-600"></i>
+          <h3 class="text-xl font-semibold text-slate-400 mb-2">Market Data Pending</h3>
+          <p class="text-slate-500">Items haven't been added to the database yet.</p>
+        </div>
+        
+        <!-- Calculator UI -->
+        <div v-else class="space-y-6">
+          <!-- Trade Sides -->
+          <div class="grid lg:grid-cols-2 gap-6">
+            <!-- HAVE Side -->
+            <div class="glass-card p-6">
+              <div class="flex items-center gap-2 mb-4">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <i data-lucide="arrow-up-circle" class="w-5 h-5 text-emerald-400"></i>
                 </div>
+                <h2 class="text-lg font-bold">You're Giving (HAVE)</h2>
+              </div>
+              
+              <!-- Search & Add -->
+              <div class="mb-3">
+                <input v-model="offeringSearch" type="text" class="input-field text-sm py-2 mb-2" placeholder="Search items...">
+              </div>
+              <div class="flex gap-2 mb-4">
+                <select v-model="selectedOfferingItem" class="input-field flex-1">
+                  <option value="">Select item to add...</option>
+                  <option v-for="item in filteredOfferingItems" :key="item.id" :value="item.id">
+                    {{ item.name }} - {{ formatNumber(item.value) }}
+                  </option>
+                </select>
+                <input v-model.number="offeringQuantity" type="number" min="1" class="input-field w-20" placeholder="Qty">
+                <button @click="addOfferingItem" class="btn-primary px-4" :disabled="!selectedOfferingItem">
+                  <i data-lucide="plus" class="w-5 h-5"></i>
+                </button>
+              </div>
+              
+              <!-- Items List -->
+              <div class="space-y-2 max-h-64 overflow-y-auto">
+                <div v-if="offeringItems.length === 0" class="text-center py-8 text-slate-500">
+                  <i data-lucide="package" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                  <p class="text-sm">No items added yet</p>
+                </div>
+                <div v-for="(item, index) in offeringItems" :key="index" class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+                  <div class="flex items-center gap-3">
+                    <img v-if="getItemData(item.id)?.imageUrl" :src="getItemData(item.id).imageUrl" class="w-10 h-10 rounded-lg object-cover" :alt="getItemData(item.id)?.name" style="image-rendering: pixelated;">
+                    <div v-else class="w-10 h-10 rounded-lg bg-dark-600 flex items-center justify-center">
+                      <i data-lucide="box" class="w-5 h-5 text-slate-500"></i>
+                    </div>
+                    <div>
+                      <div class="font-medium">{{ getItemData(item.id)?.name || 'Unknown' }}</div>
+                      <div class="text-sm text-slate-400">{{ formatNumber(getItemData(item.id)?.value || 0) }} × {{ item.quantity }}</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-emerald-400 font-semibold">{{ formatNumber((getItemData(item.id)?.value || 0) * item.quantity) }}</span>
+                    <button @click="removeOfferingItem(index)" class="text-red-400 hover:text-red-300">
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Purse -->
+              <div class="mt-4 pt-4 border-t border-dark-600">
+                <label class="text-sm text-slate-400 mb-2 flex items-center gap-2">
+                  <i data-lucide="wallet" class="w-4 h-4 text-amber-400"></i>
+                  Additional Purse
+                </label>
+                <input v-model.number="purseOffering" type="number" min="0" class="input-field mt-2" placeholder="Enter purse amount...">
+              </div>
+              
+              <!-- Total -->
+              <div class="mt-4 pt-4 border-t border-dark-600 flex justify-between items-center">
+                <span class="text-slate-400">Total Value:</span>
+                <span class="text-2xl font-bold text-emerald-400">{{ formatNumber(offeringTotal) }}</span>
+              </div>
             </div>
-        </footer>
+            
+            <!-- WANT Side -->
+            <div class="glass-card p-6">
+              <div class="flex items-center gap-2 mb-4">
+                <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                  <i data-lucide="arrow-down-circle" class="w-5 h-5 text-cyan-400"></i>
+                </div>
+                <h2 class="text-lg font-bold">You're Receiving (WANT)</h2>
+              </div>
+              
+              <!-- Search & Add -->
+              <div class="mb-3">
+                <input v-model="seekingSearch" type="text" class="input-field text-sm py-2 mb-2" placeholder="Search items...">
+              </div>
+              <div class="flex gap-2 mb-4">
+                <select v-model="selectedSeekingItem" class="input-field flex-1">
+                  <option value="">Select item to add...</option>
+                  <option v-for="item in filteredSeekingItems" :key="item.id" :value="item.id">
+                    {{ item.name }} - {{ formatNumber(item.value) }}
+                  </option>
+                </select>
+                <input v-model.number="seekingQuantity" type="number" min="1" class="input-field w-20" placeholder="Qty">
+                <button @click="addSeekingItem" class="btn-primary px-4" :disabled="!selectedSeekingItem">
+                  <i data-lucide="plus" class="w-5 h-5"></i>
+                </button>
+              </div>
+              
+              <!-- Items List -->
+              <div class="space-y-2 max-h-64 overflow-y-auto">
+                <div v-if="seekingItems.length === 0" class="text-center py-8 text-slate-500">
+                  <i data-lucide="package" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                  <p class="text-sm">No items added yet</p>
+                </div>
+                <div v-for="(item, index) in seekingItems" :key="index" class="flex items-center justify-between bg-dark-700/50 rounded-lg p-3">
+                  <div class="flex items-center gap-3">
+                    <img v-if="getItemData(item.id)?.imageUrl" :src="getItemData(item.id).imageUrl" class="w-10 h-10 rounded-lg object-cover" :alt="getItemData(item.id)?.name" style="image-rendering: pixelated;">
+                    <div v-else class="w-10 h-10 rounded-lg bg-dark-600 flex items-center justify-center">
+                      <i data-lucide="box" class="w-5 h-5 text-slate-500"></i>
+                    </div>
+                    <div>
+                      <div class="font-medium">{{ getItemData(item.id)?.name || 'Unknown' }}</div>
+                      <div class="text-sm text-slate-400">{{ formatNumber(getItemData(item.id)?.value || 0) }} × {{ item.quantity }}</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-cyan-400 font-semibold">{{ formatNumber((getItemData(item.id)?.value || 0) * item.quantity) }}</span>
+                    <button @click="removeSeekingItem(index)" class="text-red-400 hover:text-red-300">
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Purse -->
+              <div class="mt-4 pt-4 border-t border-dark-600">
+                <label class="text-sm text-slate-400 mb-2 flex items-center gap-2">
+                  <i data-lucide="wallet" class="w-4 h-4 text-amber-400"></i>
+                  Additional Purse
+                </label>
+                <input v-model.number="purseSeeking" type="number" min="0" class="input-field mt-2" placeholder="Enter purse amount...">
+              </div>
+              
+              <!-- Total -->
+              <div class="mt-4 pt-4 border-t border-dark-600 flex justify-between items-center">
+                <span class="text-slate-400">Total Value:</span>
+                <span class="text-2xl font-bold text-cyan-400">{{ formatNumber(seekingTotal) }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Verdict Section -->
+          <div class="glass-card p-6">
+            <h2 class="text-xl font-bold text-center mb-6">Trade Analysis</h2>
+            
+            <!-- Verdict Meter -->
+            <div class="max-w-2xl mx-auto mb-6">
+              <div class="flex justify-between text-sm mb-2">
+                <span class="text-red-400">Loss</span>
+                <span class="text-amber-400">Fair</span>
+                <span class="text-emerald-400">Win</span>
+              </div>
+              <div class="verdict-meter h-4 rounded-full overflow-hidden bg-dark-700">
+                <div class="h-full transition-all duration-500 ease-out rounded-full" :style="{ width: verdictPercentage + '%' }" :class="verdictFillClass"></div>
+              </div>
+              <div class="flex justify-center mt-2">
+                <div class="w-0.5 h-4 bg-slate-500 relative" :style="{ left: (verdictPercentage - 50) + '%' }"></div>
+              </div>
+            </div>
+            
+            <!-- Verdict Display -->
+            <div class="text-center">
+              <div class="inline-flex items-center gap-3 px-8 py-4 rounded-2xl mb-4" :class="verdictBgClass">
+                <i :data-lucide="verdictIcon" class="w-8 h-8" :class="verdictTextClass"></i>
+                <span class="text-3xl font-bold" :class="verdictTextClass">{{ verdictText }}</span>
+              </div>
+              
+              <div class="grid grid-cols-3 gap-4 max-w-lg mx-auto mt-6">
+                <div class="text-center">
+                  <div class="text-sm text-slate-500 mb-1">You Give</div>
+                  <div class="text-lg font-semibold text-emerald-400">{{ formatNumber(offeringTotal) }}</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-sm text-slate-500 mb-1">Difference</div>
+                  <div class="text-lg font-semibold" :class="differenceClass">
+                    {{ differencePrefix }}{{ formatNumber(Math.abs(difference)) }}
+                  </div>
+                </div>
+                <div class="text-center">
+                  <div class="text-sm text-slate-500 mb-1">You Get</div>
+                  <div class="text-lg font-semibold text-cyan-400">{{ formatNumber(seekingTotal) }}</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Clear Button -->
+            <div class="flex justify-center mt-6">
+              <button @click="clearAll" class="btn-secondary">
+                <span class="flex items-center gap-2">
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                  Clear All
+                </span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Market Info -->
+          <div class="glass-card p-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+              <i data-lucide="trending-up" class="w-5 h-5 text-violet-400"></i>
+              Market Overview
+            </h2>
+            
+            <div class="mb-4">
+              <input v-model="marketSearch" type="text" class="input-field" placeholder="Search market items...">
+            </div>
+            
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div v-for="item in filteredMarketItems" :key="item.id" class="flex items-center gap-3 bg-dark-700/50 rounded-lg p-3 hover:bg-dark-700 transition-colors cursor-pointer" @click="quickAddItem(item)">
+                <img v-if="item.imageUrl" :src="item.imageUrl" class="w-12 h-12 rounded-lg object-cover" :alt="item.name" style="image-rendering: pixelated;">
+                <div v-else class="w-12 h-12 rounded-lg bg-dark-600 flex items-center justify-center">
+                  <i data-lucide="box" class="w-6 h-6 text-slate-500"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium truncate">{{ item.name }}</div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-violet-400 font-semibold">{{ formatNumber(item.value) }}</span>
+                    <span :class="getDemandClass(item.demand)" class="demand-tag text-xs">{{ item.demand || 'N/A' }}</span>
+                  </div>
+                </div>
+                <div :class="getTrendClass(item.trend)">
+                  <i :data-lucide="getTrendIcon(item.trend)" class="w-5 h-5"></i>
+                </div>
+              </div>
+            </div>
+            
+            <p class="text-center text-sm text-slate-500 mt-4">
+              <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+              Click any item to quickly add it to the calculator
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Quick Add Modal -->
+    <div v-if="showQuickAddModal" class="modal-overlay" @click.self="showQuickAddModal = false">
+      <div class="modal-content glass-modal max-w-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold">Add {{ quickAddItemData?.name }}</h3>
+          <button @click="showQuickAddModal = false" class="text-slate-400 hover:text-white">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        
+        <div class="flex items-center gap-4 mb-4">
+          <img v-if="quickAddItemData?.imageUrl" :src="quickAddItemData.imageUrl" class="w-16 h-16 rounded-lg" style="image-rendering: pixelated;">
+          <div>
+            <div class="font-medium">{{ quickAddItemData?.name }}</div>
+            <div class="text-sm text-violet-400">{{ formatNumber(quickAddItemData?.value || 0) }} per item</div>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm text-slate-400 mb-2">Quantity</label>
+          <input v-model.number="quickAddQty" type="number" min="1" class="input-field" placeholder="Enter quantity...">
+        </div>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <button @click="confirmQuickAdd('offering')" class="btn-secondary flex items-center justify-center gap-2">
+            <i data-lucide="arrow-up" class="w-4 h-4 text-emerald-400"></i>
+            Add to HAVE
+          </button>
+          <button @click="confirmQuickAdd('seeking')" class="btn-secondary flex items-center justify-center gap-2">
+            <i data-lucide="arrow-down" class="w-4 h-4 text-cyan-400"></i>
+            Add to WANT
+          </button>
+        </div>
+      </div>
     </div>
-
-    <script src="app.js"></script>
-    <script>
-        const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+  </div>
+  
+  <script src="app.js"></script>
+  
+  <script>
+    const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+    
+    createApp({
+      setup() {
+        const user = ref(null);
+        const isUserAdmin = ref(false);
+        const items = ref([]);
+        const loading = ref(true);
         
-        createApp({
-            setup() {
-                // State
-                const user = ref(null);
-                const isAdmin = ref(false);
-                const items = ref([]);
-                const priceSearch = ref('');
-                
-                const offering = ref([{ itemId: '', quantity: 1 }]);
-                const seeking = ref([{ itemId: '', quantity: 1 }]);
-                
-                let unsubscribeItems = null;
-                
-                // Computed
-                const filteredItems = computed(() => {
-                    if (!priceSearch.value) return items.value;
-                    const query = priceSearch.value.toLowerCase();
-                    return items.value.filter(item => 
-                        item.name?.toLowerCase().includes(query)
-                    );
-                });
-                
-                const offeringTotal = computed(() => {
-                    return offering.value.reduce((total, item) => {
-                        return total + getItemValue(item);
-                    }, 0);
-                });
-                
-                const seekingTotal = computed(() => {
-                    return seeking.value.reduce((total, item) => {
-                        return total + getItemValue(item);
-                    }, 0);
-                });
-                
-                const valueDifference = computed(() => {
-                    return seekingTotal.value - offeringTotal.value;
-                });
-                
-                const tradeResult = computed(() => {
-                    // Need at least one valid item on each side
-                    const hasOffering = offering.value.some(i => i.itemId);
-                    const hasSeeking = seeking.value.some(i => i.itemId);
-                    
-                    if (!hasOffering || !hasSeeking) return null;
-                    if (offeringTotal.value === 0 && seekingTotal.value === 0) return null;
-                    
-                    const ratio = seekingTotal.value > 0 ? offeringTotal.value / seekingTotal.value : 0;
-                    
-                    if (ratio >= 0.9 && ratio <= 1.1) {
-                        return {
-                            result: 'Fair',
-                            emoji: '⚖️',
-                            color: 'yellow',
-                            message: 'This trade is balanced! Both sides get similar value.'
-                        };
-                    } else if (ratio < 0.9) {
-                        return {
-                            result: 'Win',
-                            emoji: '🎉',
-                            color: 'green',
-                            message: 'Great deal! You\'re getting more value than you\'re giving.'
-                        };
-                    } else {
-                        return {
-                            result: 'Loss',
-                            emoji: '📉',
-                            color: 'red',
-                            message: 'Not recommended. You\'re giving more value than you\'re receiving.'
-                        };
-                    }
-                });
-                
-                // Methods
-                const handleSignIn = async () => {
-                    try {
-                        await FakepixelHub.signInWithGoogle();
-                    } catch (error) {
-                        console.error("Sign in error:", error);
-                        alert("Failed to sign in. Please try again.");
-                    }
-                };
-                
-                const handleSignOut = async () => {
-                    try {
-                        await FakepixelHub.signOut();
-                    } catch (error) {
-                        console.error("Sign out error:", error);
-                    }
-                };
-                
-                const checkAdminStatus = async (email) => {
-                    if (!email) {
-                        isAdmin.value = false;
-                        return;
-                    }
-                    isAdmin.value = await FakepixelHub.checkIsAdmin(email);
-                };
-                
-                const formatPrice = (price) => {
-                    return FakepixelHub.formatPrice(price || 0);
-                };
-                
-                const getItemIcon = (itemId) => {
-                    if (!itemId) return 'https://mc-heads.net/item/barrier';
-                    const item = items.value.find(i => i.id === itemId);
-                    return item?.icon || 'https://mc-heads.net/item/diamond';
-                };
-                
-                const getItemPrice = (itemId) => {
-                    if (!itemId) return 0;
-                    const item = items.value.find(i => i.id === itemId);
-                    return item?.price || 0;
-                };
-                
-                const getItemValue = (item) => {
-                    if (!item.itemId) return 0;
-                    return getItemPrice(item.itemId) * (item.quantity || 1);
-                };
-                
-                // Offering methods
-                const addOffering = () => {
-                    offering.value.push({ itemId: '', quantity: 1 });
-                };
-                
-                const removeOffering = (index) => {
-                    if (offering.value.length > 1) {
-                        offering.value.splice(index, 1);
-                    } else {
-                        offering.value[0] = { itemId: '', quantity: 1 };
-                    }
-                };
-                
-                // Seeking methods
-                const addSeeking = () => {
-                    seeking.value.push({ itemId: '', quantity: 1 });
-                };
-                
-                const removeSeeking = (index) => {
-                    if (seeking.value.length > 1) {
-                        seeking.value.splice(index, 1);
-                    } else {
-                        seeking.value[0] = { itemId: '', quantity: 1 };
-                    }
-                };
-                
-                // Utility methods
-                const clearAll = () => {
-                    offering.value = [{ itemId: '', quantity: 1 }];
-                    seeking.value = [{ itemId: '', quantity: 1 }];
-                };
-                
-                const swapSides = () => {
-                    const temp = [...offering.value];
-                    offering.value = [...seeking.value];
-                    seeking.value = temp;
-                };
-                
-                const quickAdd = (item) => {
-                    // Add to offering by default
-                    const emptyOffering = offering.value.find(o => !o.itemId);
-                    if (emptyOffering) {
-                        emptyOffering.itemId = item.id;
-                    } else {
-                        offering.value.push({ itemId: item.id, quantity: 1 });
-                    }
-                };
-                
-                // Lifecycle
-                onMounted(() => {
-                    // Auth state listener
-                    FakepixelHub.auth.onAuthStateChanged(async (firebaseUser) => {
-                        user.value = firebaseUser;
-                        if (firebaseUser) {
-                            await checkAdminStatus(firebaseUser.email);
-                        } else {
-                            isAdmin.value = false;
-                        }
-                    });
-                    
-                    // Subscribe to items
-                    unsubscribeItems = FakepixelHub.subscribeToItems((itemsList) => {
-                        items.value = itemsList;
-                    });
-                    
-                    // Initialize Lucide icons
-                    lucide.createIcons();
-                });
-                
-                onUnmounted(() => {
-                    if (unsubscribeItems) unsubscribeItems();
-                });
-                
-                return {
-                    user,
-                    isAdmin,
-                    items,
-                    priceSearch,
-                    offering,
-                    seeking,
-                    filteredItems,
-                    offeringTotal,
-                    seekingTotal,
-                    valueDifference,
-                    tradeResult,
-                    handleSignIn,
-                    handleSignOut,
-                    formatPrice,
-                    getItemIcon,
-                    getItemValue,
-                    addOffering,
-                    removeOffering,
-                    addSeeking,
-                    removeSeeking,
-                    clearAll,
-                    swapSides,
-                    quickAdd
-                };
-            }
-        }).mount('#app');
+        const selectedOfferingItem = ref('');
+        const offeringQuantity = ref(1);
+        const offeringItems = ref([]);
+        const purseOffering = ref(0);
+        const offeringSearch = ref('');
         
-        // Re-init icons when Vue updates DOM
-        setInterval(() => lucide.createIcons(), 1000);
-    </script>
+        const selectedSeekingItem = ref('');
+        const seekingQuantity = ref(1);
+        const seekingItems = ref([]);
+        const purseSeeking = ref(0);
+        const seekingSearch = ref('');
+        
+        const marketSearch = ref('');
+        
+        const showQuickAddModal = ref(false);
+        const quickAddItemData = ref(null);
+        const quickAddQty = ref(1);
+        
+        let unsubscribeItems = null;
+        let unsubscribeAuth = null;
+        
+        const filteredOfferingItems = computed(() => {
+          if (!offeringSearch.value) return items.value;
+          const search = offeringSearch.value.toLowerCase();
+          return items.value.filter(item => item.name?.toLowerCase().includes(search));
+        });
+        
+        const filteredSeekingItems = computed(() => {
+          if (!seekingSearch.value) return items.value;
+          const search = seekingSearch.value.toLowerCase();
+          return items.value.filter(item => item.name?.toLowerCase().includes(search));
+        });
+        
+        const filteredMarketItems = computed(() => {
+          if (!marketSearch.value) return items.value;
+          const search = marketSearch.value.toLowerCase();
+          return items.value.filter(item => item.name?.toLowerCase().includes(search));
+        });
+        
+        const getItemData = (itemId) => items.value.find(i => i.id === itemId);
+        const formatNumber = (num) => window.FakepixelHub.formatNumber(num);
+        const getDemandClass = (demand) => window.FakepixelHub.getDemandClass(demand);
+        const getTrendInfo = (trend) => window.FakepixelHub.getTrendInfo(trend);
+        const getTrendClass = (trend) => getTrendInfo(trend).class;
+        const getTrendIcon = (trend) => getTrendInfo(trend).icon;
+        
+        const addOfferingItem = () => {
+          if (!selectedOfferingItem.value) return;
+          offeringItems.value.push({ id: selectedOfferingItem.value, quantity: offeringQuantity.value || 1 });
+          selectedOfferingItem.value = '';
+          offeringQuantity.value = 1;
+          refreshIcons();
+        };
+        
+        const removeOfferingItem = (index) => { offeringItems.value.splice(index, 1); };
+        
+        const addSeekingItem = () => {
+          if (!selectedSeekingItem.value) return;
+          seekingItems.value.push({ id: selectedSeekingItem.value, quantity: seekingQuantity.value || 1 });
+          selectedSeekingItem.value = '';
+          seekingQuantity.value = 1;
+          refreshIcons();
+        };
+        
+        const removeSeekingItem = (index) => { seekingItems.value.splice(index, 1); };
+        
+        const quickAddItem = (item) => {
+          quickAddItemData.value = item;
+          quickAddQty.value = 1;
+          showQuickAddModal.value = true;
+          refreshIcons();
+        };
+        
+        const confirmQuickAdd = (side) => {
+          if (!quickAddItemData.value) return;
+          const newItem = { id: quickAddItemData.value.id, quantity: quickAddQty.value || 1 };
+          if (side === 'offering') {
+            offeringItems.value.push(newItem);
+          } else {
+            seekingItems.value.push(newItem);
+          }
+          showQuickAddModal.value = false;
+          quickAddItemData.value = null;
+          refreshIcons();
+        };
+        
+        const clearAll = () => {
+          offeringItems.value = [];
+          seekingItems.value = [];
+          purseOffering.value = 0;
+          purseSeeking.value = 0;
+        };
+        
+        const offeringTotal = computed(() => {
+          const itemsTotal = offeringItems.value.reduce((sum, item) => {
+            const itemData = getItemData(item.id);
+            return sum + ((itemData?.value || 0) * item.quantity);
+          }, 0);
+          return itemsTotal + (purseOffering.value || 0);
+        });
+        
+        const seekingTotal = computed(() => {
+          const itemsTotal = seekingItems.value.reduce((sum, item) => {
+            const itemData = getItemData(item.id);
+            return sum + ((itemData?.value || 0) * item.quantity);
+          }, 0);
+          return itemsTotal + (purseSeeking.value || 0);
+        });
+        
+        const difference = computed(() => seekingTotal.value - offeringTotal.value);
+        
+        const verdictPercentage = computed(() => {
+          if (offeringTotal.value === 0 && seekingTotal.value === 0) return 50;
+          const total = offeringTotal.value + seekingTotal.value;
+          const diff = difference.value;
+          const percentDiff = (diff / total) * 100;
+          return Math.min(100, Math.max(0, 50 + (percentDiff / 2)));
+        });
+        
+        const verdict = computed(() => {
+          const diff = Math.abs(difference.value);
+          const total = offeringTotal.value + seekingTotal.value;
+          if (total === 0) return 'neutral';
+          const percentDiff = (diff / total) * 100;
+          if (percentDiff <= 5) return 'fair';
+          return difference.value > 0 ? 'win' : 'loss';
+        });
+        
+        const verdictText = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'WIN';
+            case 'loss': return 'LOSS';
+            case 'fair': return 'FAIR';
+            default: return 'ADD ITEMS';
+          }
+        });
+        
+        const verdictIcon = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'trophy';
+            case 'loss': return 'alert-triangle';
+            case 'fair': return 'scale';
+            default: return 'help-circle';
+          }
+        });
+        
+        const verdictFillClass = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'verdict-win';
+            case 'loss': return 'verdict-loss';
+            case 'fair': return 'verdict-fair';
+            default: return 'bg-slate-600';
+          }
+        });
+        
+        const verdictBgClass = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'bg-emerald-500/20 border border-emerald-500/30';
+            case 'loss': return 'bg-red-500/20 border border-red-500/30';
+            case 'fair': return 'bg-amber-500/20 border border-amber-500/30';
+            default: return 'bg-slate-700/50 border border-slate-600';
+          }
+        });
+        
+        const verdictTextClass = computed(() => {
+          switch (verdict.value) {
+            case 'win': return 'text-emerald-400';
+            case 'loss': return 'text-red-400';
+            case 'fair': return 'text-amber-400';
+            default: return 'text-slate-400';
+          }
+        });
+        
+        const differenceClass = computed(() => {
+          if (difference.value > 0) return 'text-emerald-400';
+          if (difference.value < 0) return 'text-red-400';
+          return 'text-slate-400';
+        });
+        
+        const differencePrefix = computed(() => {
+          if (difference.value > 0) return '+';
+          if (difference.value < 0) return '-';
+          return '';
+        });
+        
+        const refreshIcons = () => { setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50); };
+        
+        onMounted(async () => {
+          if (window.FakepixelHub.initFirebase()) {
+            // Step 1: Handle redirect result FIRST (critical for mobile)
+            await window.FakepixelHub.handleRedirectResult();
+            
+            // Step 2: Set up auth state listener (SIMPLE like v3.0)
+            unsubscribeAuth = window.FakepixelHub.onAuthStateChanged(async (userData) => {
+              user.value = userData;
+              
+              if (userData) {
+                // Check if user is admin
+                isUserAdmin.value = await window.FakepixelHub.isAdmin(userData.email);
+              } else {
+                isUserAdmin.value = false;
+              }
+              
+              refreshIcons();
+            });
+            
+            // Items listener
+            unsubscribeItems = window.FakepixelHub.subscribeToItems((data) => {
+              items.value = data;
+              loading.value = false;
+              refreshIcons();
+            });
+          } else {
+            loading.value = false;
+          }
+          
+          refreshIcons();
+        });
+        
+        onUnmounted(() => {
+          if (unsubscribeItems) unsubscribeItems();
+          if (unsubscribeAuth) unsubscribeAuth();
+        });
+        
+        watch([offeringItems, seekingItems, showQuickAddModal], refreshIcons, { deep: true });
+        
+        return {
+          user, isUserAdmin, items, loading,
+          selectedOfferingItem, offeringQuantity, offeringItems, purseOffering, offeringSearch, filteredOfferingItems,
+          selectedSeekingItem, seekingQuantity, seekingItems, purseSeeking, seekingSearch, filteredSeekingItems,
+          marketSearch, filteredMarketItems,
+          offeringTotal, seekingTotal, difference, verdictPercentage, verdict, verdictText, verdictIcon,
+          verdictFillClass, verdictBgClass, verdictTextClass, differenceClass, differencePrefix,
+          showQuickAddModal, quickAddItemData, quickAddQty,
+          getItemData, formatNumber, getDemandClass, getTrendClass, getTrendIcon,
+          addOfferingItem, removeOfferingItem, addSeekingItem, removeSeekingItem,
+          quickAddItem, confirmQuickAdd, clearAll
+        };
+      }
+    }).mount('#app');
+  </script>
 </body>
 </html>
